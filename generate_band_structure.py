@@ -125,41 +125,36 @@ if __name__ == "__main__":
     #execution
 
     theta = 1.09 * np.pi / 180 #twist angle in radians
-    w_AA =0 #in meV
-    w_AB = 110 #in meV
+    #theta = 5 * np.pi / 180 #twist angle in radians
+    w_AA =80 #in meV
+    w_AB = 110#110 #in meV
     v_dirac = int(19746/2) #v_0 k_D in meV
     k_lattice_radius =  5
     lattice, neighbor_table = build_lattice_and_neighbor_table(k_lattice_radius)
     print(sin(theta/2)*v_dirac)
+    N_bands = 2
 
+    k_points_to_eval =[]
+    for m in range(-10,10):
+        k_points_to_eval.append(-m*tbgHelper.q1/9)
+    for m in range(1,20):
+        k_points_to_eval.append(-tbgHelper.q1+ (-tbgHelper.q3+2*tbgHelper.q1)*m/19)
+    for m in range(1,10):
+        k_points_to_eval.append(-tbgHelper.q3-tbgHelper.q2*m/9)
+
+    bands_transposed = []
     
-    v_min = v_dirac
-    minimum = 250
-    lower_band =[]
-    upper_band =[]
-    for m in range(-20,20):
-        energies = find_energies(m*tbgHelper.q1/18,
-            w_AA, w_AB, v_dirac, N_bands = 2, theta = theta,
+    for k in k_points_to_eval:
+        energies = find_energies(k,
+            w_AA, w_AB, v_dirac, N_bands = N_bands, theta = theta,
             k_lattice_radius=k_lattice_radius, lattice = lattice, neighbor_table = neighbor_table)
-        lower_band.append(energies[0])
-        upper_band.append(energies[1])
-    plt.plot(lower_band)
-    plt.plot(upper_band)
+        bands_transposed.append(energies)
+    bands = np.transpose(bands_transposed)
+
+    for band in bands:
+        plt.plot(band)
+    print(energies)
     plt.show()
 
-    for v in range(v_dirac-50,v_dirac+50):
-        lower_band =[]
-        upper_band =[]
-        for m in range(-20,20):
-            energies = find_energies(m*tbgHelper.q1/18,
-                w_AA, w_AB, v, N_bands = 2, theta = theta,
-                k_lattice_radius=k_lattice_radius, lattice = lattice, neighbor_table = neighbor_table)
-            lower_band.append(energies[0])
-            upper_band.append(energies[1])
-        if max(upper_band)<minimum:
-            minimum =max(upper_band)
-            v_min = v
-    print(2*v_min)
-    #print(energies)
-
-
+    print(sy)
+    print(np.matrix.transpose(np.matrix.conjugate(sy)))
