@@ -1,6 +1,8 @@
 import numpy as np
 from math import cos,sin
 import math
+import time
+import matplotlib.pyplot as plt
 
 s0 = np.array([[1, 0],[ 0, 1]])
 sx = np.array([[0, 1],[ 1, 0]])
@@ -62,6 +64,11 @@ def build_neighbor_table(lattice):
             except:
                 2+3
     return neighbors
+def build_lattice_and_neighbor_table(radius):
+    
+    lattice = build_lattice(radius)
+    neighbor_table = build_neighbor_table(lattice)
+    return lattice, neighbor_table
 
 def h_angle(k,theta):
     k_rot = np.dot(np.array([[cos(theta),sin(theta)],
@@ -77,46 +84,82 @@ def build_T_matrices(w_AA,w_AB):
                 + w_AB*sin(k*tbgHelper.phi)*sy)
     return Ts
 
-if __name__ == "__main__":
 
-    #tests
-    print(build_T_matrices(0,1))
-    print(build_T_matrices(1,0))
-    print(h_angle([1,0],np.pi/2))
-    print(build_lattice(1.5))
-    lat = build_lattice(1.5)
-    print(build_neighbor_table(lat))
-
-    #execution
-
-
-    theta = 1.10 * np.pi / 180 #twist angle in radians
-    w_AA = 80 #in meV
-    w_AB = 110 #in meV
-    v_dirac = 13 #including hbar
-    k_D = 1 #dirac 
-    k_theta = 2 *k_D* sin(theta/2)
+def find_energies(k_eval,w_AA, w_AB, v_dirac, N_bands, theta ,k_lattice_radius=10.5, lattice = None, neighbor_table = None):
+    if lattice == None:
+        lattice, neighbor_table = build_lattice_and_neighbor_table(k_lattice_radius)
     Ts = build_T_matrices(w_AA,w_AB)
-    lattice = build_lattice(1.5)
-    H = np.zeros((2*len(lattice),2*len(lattice)),dtype=complex)
-    print(H)
-    neighbor_table = build_neighbor_table(lattice)
-    """ fill table with hoppings""" 
+    H = np.zeros((2*len(lattice),2*len(lattice)), dtype=complex)
+    """ fill table with hoppings""" 	
+    st = time.time()
     for i,j,n in neighbor_table:
         H[2*i:2*i+2,2*j:2*j+2] = Ts[n]
         H[2*j:2*j+2,2*i:2*i+2] = np.matrix.transpose(np.matrix.conjugate(Ts[n]))#hermitian conjugate of that
-
-
-    momentum = [0,0]
+    end = time.time()
+    #print("Build hopping table in", end-st)
+    st = time.time()
     """ fill table with kinetic terms""" 
     i = 0
     for lattice_point in lattice:
-        k = momentum + lattice_point[0] * tbgHelper.q1 + lattice_point[1] * tbgHelper.q2
+        k = k_eval + lattice_point[0] * tbgHelper.q1 + lattice_point[1] * tbgHelper.q2
         if lattice_point[2] == 0: 
-            H[2*i:2*i+2,2*i:2*i+2] =h_angle(k , -theta/2) #bottom layer
+            H[2*i:2*i+2,2*i:2*i+2] = 2 * sin(theta/2) *v_dirac *h_angle(k , -theta/2) #bottom layer
         if lattice_point[2] == 1:
-            H[2*i:2*i+2,2*i:2*i+2] =h_angle(k , theta/2) #top layer
+            H[2*i:2*i+2,2*i:2*i+2] =2 * sin(theta/2) *v_dirac*h_angle(k , theta/2) #top layer
         i = i+1
+    end = time.time()
+    #print("Build kinetic table in", end-st)
+    #st = time.time()
+    #np.linalg.eigh(H)
+    #end = time.time()
+    #print("compute evals+vectors in", end-st)
+
+    st = time.time()
+    energies = sorted(np.linalg.eigvalsh(H),key = abs)
+    end = time.time()
+    #print("compute evals in", end-st)
+    #print(energies)
+    return sorted(energies[:N_bands])
+
+if __name__ == "__main__":
+    #execution
+
+    theta = 1.09 * np.pi / 180 #twist angle in radians
+    w_AA =0 #in meV
+    w_AB = 110 #in meV
+    v_dirac = int(19746/2) #v_0 k_D in meV
+    k_lattice_radius =  5
+    lattice, neighbor_table = build_lattice_and_neighbor_table(k_lattice_radius)
+    print(sin(theta/2)*v_dirac)
+
     
+    v_min = v_dirac
+    minimum = 250
+    lower_band =[]
+    upper_band =[]
+    for m in range(-20,20):
+        energies = find_energies(m*tbgHelper.q1/18,
+            w_AA, w_AB, v_dirac, N_bands = 2, theta = theta,
+            k_lattice_radius=k_lattice_radius, lattice = lattice, neighbor_table = neighbor_table)
+        lower_band.append(energies[0])
+        upper_band.append(energies[1])
+    plt.plot(lower_band)
+    plt.plot(upper_band)
+    plt.show()
+
+    for v in range(v_dirac-50,v_dirac+50):
+        lower_band =[]
+        upper_band =[]
+        for m in range(-20,20):
+            energies = find_energies(m*tbgHelper.q1/18,
+                w_AA, w_AB, v, N_bands = 2, theta = theta,
+                k_lattice_radius=k_lattice_radius, lattice = lattice, neighbor_table = neighbor_table)
+            lower_band.append(energies[0])
+            upper_band.append(energies[1])
+        if max(upper_band)<minimum:
+            minimum =max(upper_band)
+            v_min = v
+    print(2*v_min)
+    #print(energies)
 
 
