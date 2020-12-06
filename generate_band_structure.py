@@ -85,7 +85,7 @@ def build_T_matrices(w_AA,w_AB):
     return Ts
 
 
-def find_energies(k_eval,w_AA, w_AB, v_dirac, N_bands, theta ,k_lattice_radius=10.5, lattice = None, neighbor_table = None):
+def find_energies(k_eval,w_AA, w_AB, v_dirac, N_bands, theta ,k_lattice_radius=10.5, lattice = None, neighbor_table = None, return_states = False):
     if lattice == None:
         lattice, neighbor_table = build_lattice_and_neighbor_table(k_lattice_radius)
     Ts = build_T_matrices(w_AA,w_AB)
@@ -108,18 +108,16 @@ def find_energies(k_eval,w_AA, w_AB, v_dirac, N_bands, theta ,k_lattice_radius=1
             H[2*i:2*i+2,2*i:2*i+2] =2 * sin(theta/2) *v_dirac*h_angle(k , theta/2) #top layer
         i = i+1
     end = time.time()
-    #print("Build kinetic table in", end-st)
-    #st = time.time()
-    #np.linalg.eigh(H)
-    #end = time.time()
-    #print("compute evals+vectors in", end-st)
 
-    st = time.time()
-    energies = sorted(np.linalg.eigvalsh(H),key = abs)
-    end = time.time()
-    #print("compute evals in", end-st)
-    #print(energies)
-    return sorted(energies[:N_bands])
+    if return_states:
+        energies, states = np.linalg.eigh(H)
+        zipped = sorted(sorted(zip(energies,states),key=lambda pair:abs(pair[0]))[:N_bands])
+        tuples = zip(*zipped)
+        energies, states = [list(t) for t in tuples]
+        return energies,states
+    else:
+        energies = sorted(np.linalg.eigvalsh(H),key = abs)
+        return sorted(energies[:N_bands])
 
 if __name__ == "__main__":
     #execution
@@ -142,19 +140,33 @@ if __name__ == "__main__":
     for m in range(1,10):
         k_points_to_eval.append(-tbgHelper.q3-tbgHelper.q2*m/9)
 
-    bands_transposed = []
-    
-    for k in k_points_to_eval:
-        energies = find_energies(k,
-            w_AA, w_AB, v_dirac, N_bands = N_bands, theta = theta,
-            k_lattice_radius=k_lattice_radius, lattice = lattice, neighbor_table = neighbor_table)
-        bands_transposed.append(energies)
-    bands = np.transpose(bands_transposed)
 
-    for band in bands:
-        plt.plot(band)
-    print(energies)
+    to_plot = np.zeros([20,20])
+    for m in range(20):
+        for n in range(20):
+            energies, states= find_energies([m/10,n/10],
+                w_AA, w_AB, v_dirac, N_bands = N_bands, theta = theta,
+                k_lattice_radius=k_lattice_radius, lattice = lattice, 
+                neighbor_table = neighbor_table, return_states = True)
+            energies2, states2= find_energies([m/10+0.3,n/10+0.3],
+                w_AA, w_AB, v_dirac, N_bands = N_bands, theta = theta,
+                k_lattice_radius=k_lattice_radius, lattice = lattice, 
+                neighbor_table = neighbor_table, return_states = True)
+            to_plot[m,n]= abs(np.dot(states[0],states2[0]))
+    plt.plot(to_plot[0])
     plt.show()
+    if True:
+        bands_transposed = []
+        
+        for k in k_points_to_eval:
+            energies, states = find_energies(k,
+                w_AA, w_AB, v_dirac, N_bands = N_bands, theta = theta,
+                k_lattice_radius=k_lattice_radius, lattice = lattice, neighbor_table = neighbor_table,return_states = True )
+            bands_transposed.append(energies)
+        bands = np.transpose(bands_transposed)
 
-    print(sy)
-    print(np.matrix.transpose(np.matrix.conjugate(sy)))
+        for band in bands:
+            plt.plot(band)
+        print(energies)
+        plt.show()
+
