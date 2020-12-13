@@ -52,16 +52,16 @@ def build_bz():
     # only closest in recip space, need to be symmetric for K' fudge to work
     bz["G_coeffs"] =[coeffs(k,as_int=True) for k in bz["G_values"]]
     bz["k_points"] = []
-    i = 0 
-    for m in range(-10,10):
-        for n in range(-10,10):
-            if in_bz([m/5+1/10,n/5-1/10]):
-                if i<100: #halt at i=2
-                    bz["k_points"].append([m/5+1/10,n/5-1/10])
-                i = i+1
+
+    N = 20
+    for m in range(-N,N):
+        for n in range(-N,N):
+            if in_bz(m*g1+n*(g1+g2)+g1/2/N+(g1+g2)/2/N):
+                    bz["k_points"].append(m*g1+n*(g1+g2)+g1/2/N+(g1+g2)/2/N)
     return bz
 
 if __name__ =="__main__":
+    print(g1,g2,g1+g2)
     print(coeffs(q1,True),coords([0,1]))
     print(build_bz())
     m = np.array(build_bz()["k_points"])
