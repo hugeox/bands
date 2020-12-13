@@ -12,7 +12,6 @@ sz = np.array([[1, 0],[0, -1]])
 
 
 def build_lattice(radius):
-    #assert type(size)=Int
     size = math.ceil(radius)
     lattice = [] 
     # 0,0 coordinate in terms of q1, q2 in layer 0
@@ -24,6 +23,15 @@ def build_lattice(radius):
                 lattice.append([x,y,0])
             if tbglib.norm([x+1,y]) < radius:
                 lattice.append([x+1,y,1])
+    # layer symmetric way of doing it - for each layer consider
+    # k + G where |G|<radius, preserved under T
+    # for i in range(-size,size):
+    #    for j in range(-size,size):
+    #        x = i*tbglib.g1_coeff[0] + j*tbglib.g2_coeff[0]
+    #        y = i*tbglib.g1_coeff[1] + j*tbglib.g2_coeff[1]
+    #        if tbglib.norm([x,y]) < radius:
+    #            lattice.append([x,y,0])
+    #            lattice.append([x+1,y,1])
     return lattice
 
 def build_neighbor_table(lattice):
