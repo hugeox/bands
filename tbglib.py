@@ -48,7 +48,7 @@ def in_bz(k):
 def build_bz():
     bz ={}
     
-    bz["G_values"] = [g1,g2,-g1-g2,-g2,-g2,g1+g2] 
+    bz["G_values"] = [np.array([0,0]),g1,g2,-g1-g2,-g2,-g2,g1+g2] 
     # only closest in recip space, need to be symmetric for K' fudge to work
     bz["G_coeffs"] =[coeffs(k,as_int=True) for k in bz["G_values"]]
     bz["k_points"] = []
