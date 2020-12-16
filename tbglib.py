@@ -53,11 +53,11 @@ def build_bz():
     bz["G_coeffs"] =[coeffs(k,as_int=True) for k in bz["G_values"]]
     bz["k_points"] = []
 
-    N = 20
+    N = 10
     for m in range(-N,N):
         for n in range(-N,N):
-            if in_bz(m*g1+n*(g1+g2)+g1/2/N+(g1+g2)/2/N):
-                    bz["k_points"].append(m*g1+n*(g1+g2)+g1/2/N+(g1+g2)/2/N)
+            if in_bz(m/N*g1+n/N*(g1+g2)+g1/2/N+(g1+g2)/2/N):
+                    bz["k_points"].append(m/N*g1+n/N*(g1+g2)+g1/2/N+(g1+g2)/2/N)
     return bz
 
 if __name__ =="__main__":
