@@ -45,27 +45,65 @@ def in_bz(k):
         return False
     return True
 
-def build_bz():
+def dagger(A):
+    return np.transpose(np.conjugate(A))
+
+def build_bz(N=10):
     bz ={}
     
-    bz["G_values"] = [np.array([0,0]),g1,g2,-g1-g2,-g2,-g2,g1+g2] 
+    bz["trajectory"]=[]
+    bz["ticks_vals"]=["Ktop"]
+    bz["ticks_coords"]=[0]
+    bz["G_values"] = [np.array([0,0]),g1,g2,-g1-g2,-g1,-g2,g1+g2] 
+    bz["G_neg_indices"] = [0,4,5,6,1,2,3] 
     # only closest in recip space, need to be symmetric for K' fudge to work
     bz["G_coeffs"] =[coeffs(k,as_int=True) for k in bz["G_values"]]
     bz["k_points"] = []
+    bz["trajectory"] = [] #
 
-    N = 10
     for m in range(-N,N):
         for n in range(-N,N):
             if in_bz(m/N*g1+n/N*(g1+g2)+g1/2/N+(g1+g2)/2/N):
-                    bz["k_points"].append(m/N*g1+n/N*(g1+g2)+g1/2/N+(g1+g2)/2/N)
+                    bz["k_points"].append(m/N*g1+n/N*(g1+g2)+g1/5/N+(g1+g2)/2/N)
+
+
+
+    for i in range(20):
+        point = -q1 + 2*q1*(i/20)
+        idx = (np.linalg.norm(np.array(bz["k_points"]) - point ,axis=1)).argmin()
+        bz["trajectory"].append(idx)
+    bz["ticks_vals"].append("K")
+    bz["ticks_coords"].append(int(i/2))
+    bz["ticks_vals"].append("-Ktop=Gamma")
+    bz["ticks_coords"].append(len(bz["trajectory"]))
+
+    for i in range(20):
+        point = q1 -(2*q1+q2)*i/20
+        idx = (np.linalg.norm(np.array(bz["k_points"]) - point ,axis=1)).argmin()
+        bz["trajectory"].append(idx)
+    bz["ticks_vals"].append("Gamma")
+    bz["ticks_coords"].append(len(bz["trajectory"]))
+    for i in range(20):
+        point = q1 -(2*q1+q2)*i/20
+        idx = (np.linalg.norm(np.array(bz["k_points"]) - point ,axis=1)).argmin()
+        bz["trajectory"].append(idx)
+    bz["ticks_vals"].append("Gamma")
+    bz["ticks_coords"].append(len(bz["trajectory"]))
+    for i in range(11):
+        point = -q1 -q2 +q2*i/10
+        idx = (np.linalg.norm(np.array(bz["k_points"]) - point ,axis=1)).argmin()
+        bz["trajectory"].append(idx)
+    bz["ticks_vals"].append("Ktop")
+    bz["ticks_coords"].append(len(bz["trajectory"]))
     return bz
 
 if __name__ =="__main__":
-    print(g1,g2,g1+g2)
-    print(coeffs(q1,True),coords([0,1]))
+    #print(g1,g2,g1+g2)
+    #print(coeffs(q1,True),coords([0,1]))
     print(build_bz())
     m = np.array(build_bz()["k_points"])
     print(m.shape)
+
 
     plt.scatter(m[:,0],m[:,1])
     plt.show()
@@ -76,5 +114,4 @@ if __name__ =="__main__":
                 ks[i,j]=1
     print(ks)
     
-
 

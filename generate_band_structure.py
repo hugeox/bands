@@ -68,6 +68,7 @@ def build_lattice_and_neighbor_table(radius):
     return lattice, neighbor_table
 
 def h_angle(k,theta):
+    #theta = 0 #gives Particle-Hole symmetry
     k_rot = np.dot(np.array([[cos(theta),sin(theta)],
         [-sin(theta),cos(theta)]]),
         k)
@@ -120,29 +121,21 @@ if __name__ == "__main__":
     #execution
 
     model_params = {"theta" : 1.09 * np.pi / 180, #twist angle in radians
-                    "w_AA" :0,#80 #in meV
+                    "w_AA" :80,#80 #in meV
                     "w_AB" : 110,#110 #in meV
                     "v_dirac" : int(19746/2), #v_0 k_D in meV
                     "epsilon" : 5
                     }
     k_lattice_radius =  5
     lattice, neighbor_table = build_lattice_and_neighbor_table(k_lattice_radius)
-    N_bands = 4
-
-    k_points_to_eval =[]
-    for m in range(-10,10):
-        k_points_to_eval.append(-m*tbglib.q1/9)
-    for m in range(1,20):
-        k_points_to_eval.append(-tbglib.q1+ (-tbglib.q3+2*tbglib.q1)*m/19)
-    for m in range(1,10):
-        k_points_to_eval.append(-tbglib.q3-tbglib.q2*m/9)
-
+    N_bands = 2
+    bz = tbglib.build_bz(60)
 
 
     if True:
         bands_transposed = []
         
-        for k in k_points_to_eval:
+        for k in bz["k_points"]:
             energies, states= find_energies(k,
                 params = model_params, N_bands = N_bands, 
                 lattice = lattice,
@@ -153,8 +146,12 @@ if __name__ == "__main__":
         print(states[0])
         #print(len(states[0]))
         print(len(lattice))
-        for band in bands:
-            plt.plot(band)
+        for i in range(N_bands):
+            plt.plot([np.array(bands_transposed)[m,i] for m in bz["trajectory"]])
+
+        plt.xticks(bz["ticks_coords"],bz["ticks_vals"])
+        plt.legend()
+        plt.show()
         print(energies)
         plt.show()
 

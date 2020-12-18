@@ -1,3 +1,8 @@
+# sync data
+*.db
+*.db-wal
+*.db-shm
+
 #hdf5 data
 *.hdf5
 *.npy
