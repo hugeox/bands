@@ -100,7 +100,7 @@ def v_hf(bz,overlaps,model_params,P):
                             np.matrix.transpose(P[l])@\
                             np.matrix.transpose(np.matrix.conjugate(
                             overlaps[g,k,l,:,:]))
-            
+
 
         V_hf[k,:,:]=model_params["scaling_factor"]**2*temp/(len(k_points)*1.5*math.sqrt(3))
                         #area of hexagon
@@ -153,7 +153,7 @@ if __name__ == "__main__":
         d_s = 40 #screening lenght in nm
         scaling_factor = 2* sin(1.09*np.pi/180)*\
                     4*np.pi/(3*math.sqrt(3)*0.246)
-        epsilon=1/0.06 
+        epsilon=1/0.06
         if q*scaling_factor*d_s<0.1:
             return 1439.96*d_s*4*np.pi/epsilon #in eV nm^2
         else:
@@ -178,16 +178,15 @@ if __name__ == "__main__":
                     "epsilon" : 5,
                     "scaling_factor": 2* sin(1.09*np.pi/180)*\
                     4*np.pi/(3*math.sqrt(3)*0.246) ,
-                    "q_lattice_radius": 10,
-                    "V_coulomb" : V_coulomb, #V_q
-                    "size_bz" : 15
+                    "q_lattice_radius": 10, "V_coulomb" : V_coulomb, #V_q
+                    "size_bz" : 10
                     }
     brillouin_zone = tbglib.build_bz(model_params["size_bz"])
     N_k = len(brillouin_zone["k_points"])
     print("Number of points is:", N_k)
-    P_k=np.diag([1,0,0,0,0,0,0,0])
+    P_k=np.diag([1,1,1,1,1,0,0,0])
     P_0 = [P_k for k in range(N_k)]
-    id = 2
+    id = 4
     print(id)
     sp_energies, overlaps = build_overlaps(brillouin_zone,model_params)
 
@@ -199,7 +198,7 @@ if __name__ == "__main__":
         #print("Total hf energy", hf_energy_total(brillouin_zone,sp_energies,overlaps, model_params, P_old))
         print(np.linalg.norm(np.array(P).ravel()-np.array(P_old).ravel()))
     
-    f_out = h5py.File('hf_{}.hdf5'.format(id), 'w')
+    f_out = h5py.File('hf_newbz{}.hdf5'.format(id), 'w')
     f_out.create_dataset("overlaps", data = overlaps)
     f_out.create_dataset("sp_energies", data = sp_energies)
     f_out.create_dataset("P_hf", data = P)
@@ -225,8 +224,8 @@ if __name__ == "__main__":
         #plt.plot(np.array(energies)[40:60,i])
     plt.legend()
     plt.show()
-    for i in range(2):
-        plt.plot([np.array(sp_energies)[m,i] for m in brillouin_zone["trajectory"]])
+    for i in range(4):
+        plt.plot([np.array(hf_eig)[m,i] for m in brillouin_zone["trajectory"]])
 
     plt.xticks(brillouin_zone["ticks_coords"],brillouin_zone["ticks_vals"])
     plt.legend()

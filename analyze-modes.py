@@ -57,7 +57,8 @@ if __name__ == "__main__":
                     "V_coulomb" : V_coulomb #V_q
                     }
 
-    f_in = h5py.File('hf_newbz4.hdf5', 'r')
+    id = 4
+    f_in = h5py.File('hf_newbz{}.hdf5'.format(id), 'r')
     SIZE_BZ = f_in.attrs["size_bz"]
     bz = tbglib.build_bz(SIZE_BZ)
     overlaps = f_in["overlaps"][...]
@@ -77,46 +78,8 @@ if __name__ == "__main__":
     k_points = bz["k_points"]
     filling = int(round(np.real(np.trace(P[0]))))
     N = len(k_points)
-    H_mode = np.zeros((7*N,7*N),dtype=complex)
-    #for l in range(N):
-    #    for k in range(N):
-    #        k_plusq = index_kplusq(bz,k,bz["k_points_diff"][l])
-    # fill in qp energies
-    for i in range(8):
-        plt.plot([np.array(hf_eigenvalues)[m,i] for m in bz["trajectory"]])
-    plt.xticks(bz["ticks_coords"],bz["ticks_vals"])
-    plt.legend()
-    plt.show()
-    for i in range(8-filling):
-        for k in range(N):
-            k_plusq = index_kplusq(bz,k,q)
-            H_mode[i*N+k,i*N+k] = hf_eigenvalues[k_plusq,i+filling]\
-                                    - hf_eigenvalues[k,filling-1]
-    # fill in matrix elements
-    for l in range(N):
-        for k in range(N):
-            kplusq = index_kplusq(bz,k,q) # replace by index of k+q in 1st bz
-            lplusq = index_kplusq(bz,l,q) #should be l-q? 
-            for i in range(8-filling):
-                for j in range(8-filling):
-                    for g in range(len(bz["G_values"])):
-                        #hartree - as p+h attract
-                        H_mode[i*N+k,j*N+l]= H_mode[i*N+k,j*N+l]- \
-                                    V_matrix_element(g,lplusq,kplusq,
-                                        k,l,j+filling,i+filling,filling-1,
-                                        filling-1,overlaps,
-                                hf_eigenstates,bz)*\
-                                model_params["scaling_factor"]**2/\
-                                (N*1.5*math.sqrt(3)) +\
-                        V_matrix_element(g,lplusq,l,
-                                        k,kplusq,
-                                        i+filling,filling-1,filling-1,
-                                        j+filling,overlaps,
-                                hf_eigenstates,bz)*\
-                                model_params["scaling_factor"]**2/(N*1.5*math.sqrt(3))
-    
 
-    np.save("h_mode.npy",H_mode)
+    H_mode=np.load("h_mode_{}.npy".format(id))
     energies, states = np.linalg.eigh(H_mode)
     print("energies:", energies[:5])
     for i in range(8):

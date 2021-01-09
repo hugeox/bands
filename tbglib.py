@@ -18,6 +18,8 @@ g1_coeff = [1,-1] #coords in terms of q1,q2
 g1 = q1 -q2
 g2_coeff = [1,2]
 g2 = q1 + 2*q2
+print(g1,g2,g1+g2)
+
 phi = 2 * np.pi /3
 def norm(x):
     """ takes integer indices in teerms of q1, q2 returns norm"""
@@ -37,13 +39,22 @@ def in_bz(k):
         return False
     if np.linalg.norm(k)>np.linalg.norm(k-g2):
         return False
-    if np.linalg.norm(k)>np.linalg.norm(k+g2):
+    if np.linalg.norm(k)>=np.linalg.norm(k+g2):
         return False
-    if np.linalg.norm(k)>np.linalg.norm(k-g1-g2):
+    if np.linalg.norm(k)>=np.linalg.norm(k-g1-g2):
         return False
-    if np.linalg.norm(k)>np.linalg.norm(k+g1+g2):
+    if np.linalg.norm(k)>=np.linalg.norm(k+g1+g2):
         return False
     return True
+def decompose(k):
+    """ k = q + G, q in BZ, G in reciprocal lattice
+        returns q,G """
+    for i in range(-2,2):
+        for j in range(-2,2):
+            G = i*g1+j*g2
+            if in_bz(k-G):
+                return k-G,G
+    print("Not in immediate neighborhood of bz:", k)
 
 def dagger(A):
     return np.transpose(np.conjugate(A))
@@ -61,11 +72,16 @@ def build_bz(N=10):
     bz["k_points"] = []
     bz["trajectory"] = [] #
 
-    for m in range(-N,N):
-        for n in range(-N,N):
-            if in_bz(m/N*g1+n/N*(g1+g2)+g1/2/N+(g1+g2)/2/N):
-                    bz["k_points"].append(m/N*g1+n/N*(g1+g2)+g1/5/N+(g1+g2)/2/N)
+    for m in range(-6*N-4,6*N+4):
+        for n in range(-6*N-4,6*N+4):
+            q = m/N*g1+n/N*(g1+g2)+g1/501/N+g2/501/N
+            if in_bz(q):
+                bz["k_points"].append(q)
+            #if in_bz(q+q1/N):
+                #bz["k_points"].append(q+q1/N)
 
+    idx = (np.linalg.norm(np.array(bz["k_points"]) - np.array([0,0]) ,axis=1)).argmin()
+    bz["k_points_diff"] = np.array(bz["k_points"]) - bz["k_points"][idx]
 
 
     for i in range(20):
@@ -100,8 +116,9 @@ def build_bz(N=10):
 if __name__ =="__main__":
     #print(g1,g2,g1+g2)
     #print(coeffs(q1,True),coords([0,1]))
-    print(build_bz())
-    m = np.array(build_bz()["k_points"])
+    print(coeffs([1.732,0]))
+    #print(build_bz())
+    m = np.array(build_bz(19)["k_points"])
     print(m.shape)
 
 
