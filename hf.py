@@ -205,7 +205,7 @@ if __name__ == "__main__":
     f_out.create_dataset("overlaps", data = overlaps)
     f_out.create_dataset("sp_energies", data = sp_energies)
     f_out.create_dataset("P_hf", data = P)
-    f_out.create_dataset("hf_eigenvalues", data = hf_eig)
+    f_out.create_dtaset("hf_eigenvalues", data = hf_eig)
     f_out.create_dataset("hf_eigenstates", data = hf_states)
     f_out.create_dataset("V_coulomb", data =
             build_V_coulomb_table(brillouin_zone,model_params["V_coulomb"]))
