@@ -132,7 +132,9 @@ def iterate_hf(bz,energies, overlaps, model_params, P):
     P_new = np.zeros(np.array(P).shape,dtype = complex)
     for k in range(len(k_points)):
         filling = int(round(np.real(np.trace(P[k]))))
-        energies, states = np.linalg.eigh(h_mf[k,:,:])
+        #project H_hf onto top 4 bands:
+        projector = np.diag([0+0j,1+0j,0,1,0,1,0,1])
+        energies, states = np.linalg.eigh(projector@ h_mf[k,:,:] @ projector)
         m = np.zeros(flavors,dtype = complex)
         m[:filling]=1
         P_new[k,:,:] = np.conjugate(states) @\
@@ -178,15 +180,16 @@ if __name__ == "__main__":
                     "epsilon" : 5,
                     "scaling_factor": 2* sin(1.09*np.pi/180)*\
                     4*np.pi/(3*math.sqrt(3)*0.246) ,
-                    "q_lattice_radius": 10, "V_coulomb" : V_coulomb, #V_q
+                    "q_lattice_radius": 10,
+                    "V_coulomb" : V_coulomb, #V_q
                     "size_bz" : 10
                     }
     brillouin_zone = tbglib.build_bz(model_params["size_bz"])
     N_k = len(brillouin_zone["k_points"])
     print("Number of points is:", N_k)
-    P_k=np.diag([1,1,1,1,1,0,0,0])
+    P_k=np.diag([1,1,1,1,1,1,1,0])
     P_0 = [P_k for k in range(N_k)]
-    id = 4
+    id = 7
     print(id)
     sp_energies, overlaps = build_overlaps(brillouin_zone,model_params)
 
@@ -198,7 +201,7 @@ if __name__ == "__main__":
         #print("Total hf energy", hf_energy_total(brillouin_zone,sp_energies,overlaps, model_params, P_old))
         print(np.linalg.norm(np.array(P).ravel()-np.array(P_old).ravel()))
     
-    f_out = h5py.File('hf_newbz{}.hdf5'.format(id), 'w')
+    f_out = h5py.File('hf_{}.hdf5'.format(id), 'w')
     f_out.create_dataset("overlaps", data = overlaps)
     f_out.create_dataset("sp_energies", data = sp_energies)
     f_out.create_dataset("P_hf", data = P)

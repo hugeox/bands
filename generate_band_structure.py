@@ -101,7 +101,7 @@ def find_energies(k_eval, params, N_bands ,k_lattice_radius=10.5, lattice = None
     for lattice_point in lattice:
         k = k_eval + lattice_point[0] * tbglib.q1 + lattice_point[1] * tbglib.q2
         if lattice_point[2] == 0: 
-            H[2*i:2*i+2,2*i:2*i+2] = 2 * sin(theta/2) *v_dirac *h_angle(k , -theta/2) #bottom layer
+            H[2*i:2*i+2,2*i:2*i+2] = 2 * sin(theta/2) *v_dirac *h_angle(k , -theta/2) + 30 * tbglib.sz #bottom layer
         if lattice_point[2] == 1:
             H[2*i:2*i+2,2*i:2*i+2] =2 * sin(theta/2) *v_dirac*h_angle(k , theta/2) #top layer
         i = i+1
