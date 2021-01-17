@@ -73,10 +73,10 @@ def C2T_eigenvalue(state):
         a = a +1
     eigvalue = np.conjugate(state[a+1])/state[a]
     eigvalue2 = np.conjugate(state[a+3])/state[a+2]
-    if abs(abs(eigvalue)-1)>0.001:
+    if abs(abs(eigvalue)-1)>0.00001:
         print("C2T Eigvalue is, and its norm is not one: ", eigvalue)
     if abs(eigvalue-eigvalue2)>0.00001:
-        print("C2T Eigvalue is, and is not equal for d. meth. : ", eigvalue)
+        print("C2T Eigvalue is, and is not equal with second method : ", eigvalue)
     return eigvalue
 
 def all_c2t_evals(states,states_prime):
@@ -102,10 +102,12 @@ def build_overlaps(bz,model_params):
     s_matrices_prime = []
     s_matrices = []
     for k in k_points:
+        print(k)
         energies, states = gbs.find_energies(k,
             params = model_params, N_bands = 2, 
             lattice = lattice,
             neighbor_table = neighbor_table,return_states = True )
+        print(energies)
         # fudge K' using time reversal
         energies_prime, states_prime = gbs.find_energies(-np.array(k),
             params = model_params, N_bands = 2, 
@@ -223,8 +225,8 @@ if __name__ == "__main__":
                     4*np.pi/(3*math.sqrt(3)*0.246) , #this will actually be computed from theta, 0.246nm = lattice const. of graphene
                     "single_gate_screening": False, #single or dual gate screening?
                     "q_lattice_radius": 10,
-                    "size_bz": 10,
-                    "description": "v=-3, small bz ",
+                    "size_bz": 12,
+                    "description": "v=-3, small bz, but new ",
                     "V_coulomb" : V_coulomb,
                     "filling": 1
                     }
@@ -236,7 +238,7 @@ if __name__ == "__main__":
     print(a)
     P_k=np.diag(a)
     P_0 = [P_k for k in range(N_k)]
-    id = 0
+    id = 1
     print(id)
     sp_energies, overlaps, c2t_eigenvalues = build_overlaps(brillouin_zone,model_params)
 

@@ -12,7 +12,7 @@ if __name__ == "__main__":
                 
     """ LOADING """
 
-    id = 0
+    id = 1
     hf_solution = hf.read_hf_from_file("data/hf_{}.hdf5".format(id))
     for key,val in hf_solution.items():
         print("Loading key:", key)
@@ -31,6 +31,10 @@ if __name__ == "__main__":
 
     
     P, energies,states = hf.iterate_hf(bz,sp_energies,overlaps, model_params, P_0)
+    errs = np.array(energies)
+    print(min(errs[:,1]-errs[:,0]))
+    k = (errs[:,1]-errs[:,0]).argmin()
+    print(errs[k,1],errs[k,0])
     for k in range(len(bz["k_points"])):
         print("HF sol",np.linalg.norm(np.diag(c2t_eigenvalues[k]) @ np.transpose(P_hf[k])@ np.diag(np.conjugate(c2t_eigenvalues[k])) - P_hf[k]))
         print("HF sol after one iter",np.linalg.norm(np.diag(c2t_eigenvalues[k]) @ np.transpose(P[k])@ np.diag(np.conjugate(c2t_eigenvalues[k])) - P[k]))
@@ -38,11 +42,19 @@ if __name__ == "__main__":
 
     for i in range(2):
         print(hf_eigenstates[0,:,i])
-        plt.plot([np.array(energies)[m,i] for m in bz["trajectory"]])
+        plt.plot([np.array(energies)[m,i] for m in bz["trajectory"]],'o',label = "after one iter")
     for i in range(2):
-        plt.plot([np.array(hf_eigenvalues)[m,i] for m in bz["trajectory"]])
+        plt.plot([np.array(hf_eigenvalues)[m,i] for m in bz["trajectory"]],label = "hf_eigenvalues")
     for i in range(2):
         plt.plot([50*np.array(sp_energies)[m,i] for m in bz["trajectory"]])
+    plt.xticks(bz["ticks_coords"],bz["ticks_vals"])
+    plt.legend()
+    plt.show()
+    for i in range(2):
+        print(hf_eigenstates[0,:,i])
+        plt.plot(np.array(energies)[:,i],'x',label = "after one iter")
+    for i in range(2):
+        plt.plot(np.array(hf_eigenvalues)[:,i] ,label = "hf_eigenvalues")
     plt.xticks(bz["ticks_coords"],bz["ticks_vals"])
     plt.legend()
     plt.show()

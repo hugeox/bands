@@ -35,7 +35,7 @@ def index_kplusq(bz,index_k,q):
 if __name__ == "__main__":
     #execution
                 
-    id = 4
+    id = 0
     hf_solution = hf.read_hf_from_file("data/hf_{}.hdf5".format(id))
     for key,val in hf_solution.items():
         print("Loading key:", key)
