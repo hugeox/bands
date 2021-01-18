@@ -153,7 +153,7 @@ def v_hf(bz,overlaps,model_params,P):
         for k in range(len(k_points)):
             temp = temp + \
                  np.trace(P[k] @ np.conjugate(overlaps[g,k,k,:,:]))
-        if g==0: #remove 0 component of V
+        if g==0 or True: #remove 0 component of V
             temp = 0
         direct_potential.append(temp)
     for k in range(len(k_points)):
@@ -187,7 +187,7 @@ def hf_energy_total(bz,energies, overlaps, model_params, P):
         temp = temp + np.trace(np.transpose(P[k]) @ (en[k] + 0.5*v_mf[k]))
     return temp
     
-def iterate_hf(bz,energies, overlaps, model_params, P):
+def iterate_hf(bz,energies, overlaps, model_params, P, k_dep_filling = False):
     en = []
     for e in energies:
         en.append(np.diag(e))
@@ -198,16 +198,35 @@ def iterate_hf(bz,energies, overlaps, model_params, P):
     flavors = len(P[0])
     hf_energies = []
     hf_states = []
+    total_fill = 0
+    k_fillings = np.zeros(len(k_points),dtype = int)
     P_new = np.zeros(np.array(P).shape,dtype = complex)
     for k in range(len(k_points)):
         filling = int(round(np.real(np.trace(P[k]))))
         energies, states = np.linalg.eigh(h_mf[k,:,:])
         m = np.zeros(flavors,dtype = complex)
         m[:filling]=1
-        P_new[k,:,:] = np.conjugate(states) @\
-                     np.diag(m) @  np.transpose(states)
+        total_fill = total_fill + filling
+        if k_dep_filling == False:
+            P_new[k,:,:] = np.conjugate(states) @\
+                         np.diag(m) @  np.transpose(states)
         hf_energies.append(energies)
         hf_states.append(states)
+    if k_dep_filling:
+        print(total_fill)
+        arr = np.transpose(hf_energies)
+        idx = np.argpartition(arr.ravel(), total_fill)
+        for i in range(total_fill):
+            id_k = idx[i]%len(k_points)
+            k_fillings[id_k] = k_fillings[id_k] + 1
+        for k in range(len(k_points)):
+            filling = k_fillings[k]
+            m = np.zeros(flavors,dtype = complex)
+            m[:filling]=1
+            P_new[k,:,:] = np.conjugate(hf_states[k]) @\
+                         np.diag(m) @  np.transpose(hf_states[k])
+        print(k_fillings)
+
     return P_new, hf_energies, hf_states
     
 
@@ -225,36 +244,45 @@ if __name__ == "__main__":
                     4*np.pi/(3*math.sqrt(3)*0.246) , #this will actually be computed from theta, 0.246nm = lattice const. of graphene
                     "single_gate_screening": False, #single or dual gate screening?
                     "q_lattice_radius": 10,
-                    "size_bz": 12,
-                    "description": "v=-3, small bz, but new ",
+                    "size_bz": 10,
+                    "description": "v=-3, small bz, containing 0",
                     "V_coulomb" : V_coulomb,
-                    "filling": 1
+                    "filling": 0
                     }
     brillouin_zone = tbglib.build_bz(model_params["size_bz"])
+    bz = brillouin_zone
     N_k = len(brillouin_zone["k_points"])
     print("Number of points is:", N_k)
     a = np.array([1,0,0,0,0,0,0,0])
-    a[:model_params["filling"]] = 1
-    print(a)
+    #a[:model_params["filling"]] = 1
     P_k=np.diag(a)
-    P_0 = [P_k for k in range(N_k)]
-    id = 1
+    P_0 = [P_k.copy() for k in range(N_k)]
+    #for d in range(int(N_k/2)):
+    #    P_0[d][0,0]=1
+
+    id = 5
     print(id)
     sp_energies, overlaps, c2t_eigenvalues = build_overlaps(brillouin_zone,model_params)
 
     for m in range(1):
-        P, energies,states = iterate_hf(brillouin_zone,sp_energies,overlaps, model_params, P_0)
-    for m in range(50):
+        P, energies,states = iterate_hf(brillouin_zone,sp_energies,overlaps,
+                model_params, P_0,True)
+    for m in range(40):
         P_old = P.copy()
-        P, hf_eig,hf_states = iterate_hf(brillouin_zone,sp_energies,overlaps, model_params, P_old)
+        P, hf_eig,hf_states = iterate_hf(brillouin_zone,sp_energies,overlaps,
+                model_params, P_old,False)
         #print("Total hf energy", hf_energy_total(brillouin_zone,sp_energies,overlaps, model_params, P_old))
         print(np.linalg.norm(np.array(P).ravel()-np.array(P_old).ravel()))
-    while input("continue? y/n") == "y":
-        for m in range(50):
-            P_old = P.copy()
-            P, hf_eig,hf_states = iterate_hf(brillouin_zone,sp_energies,overlaps, model_params, P_old)
+    
+    v = v_hf(bz,overlaps,model_params,P)
+    k = 0
+    print("V(k) c2t invar: ",np.linalg.norm(np.diag(c2t_eigenvalues[k]) @ np.conjugate(v[k])@ np.diag(np.conjugate(c2t_eigenvalues[k])) - v[k]))
+    #while input("continue? y/n") == "y":
+    #    for m in range(50):
+    #        P_old = P.copy()
+    #        P, hf_eig,hf_states = iterate_hf(brillouin_zone,sp_energies,overlaps, model_params, P_old)
             #print("Total hf energy", hf_energy_total(brillouin_zone,sp_energies,overlaps, model_params, P_old))
-            print(np.linalg.norm(np.array(P).ravel()-np.array(P_old).ravel()))
+    #        print(np.linalg.norm(np.array(P).ravel()-np.array(P_old).ravel()))
     
     f_out = h5py.File('data/hf_{}.hdf5'.format(id), 'w')
     f_out.create_dataset("overlaps", data = overlaps)

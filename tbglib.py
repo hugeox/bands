@@ -32,7 +32,7 @@ def coeffs(k,as_int=False):
         return np.linalg.solve(q_matrix,k)
 def coords(coeffs):
     return q_matrix @ coeffs
-def in_bz(k):
+def in_bz_new(k):
     #basically checking if coeffs in (-0.5,0.5]x(-0.5,0.5]
     # for that need to first work with rationals
     coeffs = np.linalg.solve(g_matrix,k)
@@ -45,7 +45,7 @@ def in_bz(k):
     if 2*coeffs_int[1]>i or 2*coeffs_int[1]<-i+1:
         return False
     return True
-def in_bz_old(k):
+def in_bz(k):
     """k in x,y basis"""
     if np.linalg.norm(k)>np.linalg.norm(k-g1):
         return False
@@ -97,8 +97,10 @@ def build_bz(N=10):
 
     for m in range(-6*N-4,6*N+4):
         for n in range(-6*N-4,6*N+4):
-            q = m/N*g1+n/N*(g2)#+g1/501/N+g2/501/N
+            q = m/N*g1+n/N*(g1+g2)+g1/501/N+g2/501/N
             if in_bz(q):
+                if m==n==0:
+                    bz["index_0"]=len(bz["k_points"])
                 bz["k_points"].append(q)
             #if in_bz(q+q1/N):
                 #bz["k_points"].append(q+q1/N)
@@ -107,8 +109,9 @@ def build_bz(N=10):
     bz["k_points_diff"] = np.array(bz["k_points"]) - bz["k_points"][idx]
 
 
-    for i in range(20):
-        point = -q1 + 2*q1*(i/20)
+    N_t = 20
+    for i in range(N_t+1):
+        point = -q1 + 2*q1*(i/N_t)
         idx = closest_in_bz(bz["k_points"],point)
         bz["trajectory"].append(idx)
     bz["ticks_vals"].append("K")
@@ -116,20 +119,20 @@ def build_bz(N=10):
     bz["ticks_vals"].append("-Ktop=Gamma")
     bz["ticks_coords"].append(len(bz["trajectory"]))
 
-    for i in range(20):
-        point = q1 -(2*q1+q2)*i/20
+    for i in range(1,N_t+1):
+        point = q1 -(2*q1+q2)*i/N_t
         idx = closest_in_bz(bz["k_points"],point)
         bz["trajectory"].append(idx)
     bz["ticks_vals"].append("Gamma")
     bz["ticks_coords"].append(len(bz["trajectory"]))
-    for i in range(20):
-        point = q1 -(2*q1+q2)*i/20
+    for i in range(1,N_t+1):
+        point = q1 -(2*q1+q2)*i/N_t
         idx = closest_in_bz(bz["k_points"],point)
         bz["trajectory"].append(idx)
     bz["ticks_vals"].append("Gamma")
     bz["ticks_coords"].append(len(bz["trajectory"]))
-    for i in range(11):
-        point = -q1 -q2 +q2*i/10
+    for i in range(1,N_t+1):
+        point = -q1 -q2 +q2*i/N_t
         idx = closest_in_bz(bz["k_points"],point)
         bz["trajectory"].append(idx)
     bz["ticks_vals"].append("Ktop")
@@ -144,7 +147,6 @@ if __name__ =="__main__":
     m = np.array(build_bz(10)["k_points"])
     print(m.shape)
 
-
     plt.scatter(m[:,0],m[:,1])
     plt.show()
     ks = np.zeros((20,20))
@@ -153,5 +155,3 @@ if __name__ =="__main__":
             if in_bz([i/5-2,j/5-2]):
                 ks[i,j]=1
     print(ks)
-    
-
