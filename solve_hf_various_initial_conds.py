@@ -12,7 +12,7 @@ if __name__ == "__main__":
                 
     """ LOADING """
 
-    id = 3
+    id = 8
     hf_solution = hf.read_hf_from_file("data/hf_{}.hdf5".format(id))
     for key,val in hf_solution.items():
         print("Loading key:", key)
@@ -21,7 +21,7 @@ if __name__ == "__main__":
  
     P_1=[]
     for k in range(N):
-        a = np.array([1+0j,0,0,0,0,0,0,0])
+        a = np.array([1+0j,0,])
         states = 1/math.sqrt(2)*np.transpose([np.conjugate(c2t_eigenvalues[k][:2]),[0,0]])
         #states = 1/math.sqrt(2)*np.transpose([np.sqrt(c2t_eigenvalues[k][:2]),[0,0]])
         P_k=np.diag(a)
@@ -32,15 +32,16 @@ if __name__ == "__main__":
  
     zero = bz["index_0"]
     
-    v = hf.v_hf(bz,overlaps,model_params,P_1)
-    print(v[zero][:2,:2])
+    k = 0
+    print("P c2t invariance:",np.linalg.norm(np.diag(c2t_eigenvalues[k]) @ P_1[k] @ np.diag(np.conjugate(c2t_eigenvalues[k])) - np.transpose(P_1[k])))
     P, energies,states = hf.iterate_hf(bz,sp_energies,overlaps, model_params,
             P_1, k_dep_filling = False)
-    for m in range(1):
+    print("P c2t invariance:",np.linalg.norm(np.diag(c2t_eigenvalues[k]) @ P[k] @ np.diag(np.conjugate(c2t_eigenvalues[k])) - np.transpose(P[k])))
+    for m in range(50):
         P_old = P.copy()
         P, hf_eig,hf_states = hf.iterate_hf(bz,sp_energies,overlaps,
                 model_params, P_old,False)
-        print(P[0])
+        print(m,"P c2t invariance:",np.linalg.norm(np.diag(c2t_eigenvalues[k]) @ P[k] @ np.diag(np.conjugate(c2t_eigenvalues[k])) - np.transpose(P[k])))
         print(np.linalg.norm(np.array(P).ravel()-np.array(P_old).ravel()))
 
     for k in range(len(bz["k_points"])):

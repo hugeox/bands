@@ -16,7 +16,7 @@ def V_coulomb(q_vec):
     d_s = 40 #screening lenght in nm
     scaling_factor = 2* sin(1.09*np.pi/180)*\
                 4*np.pi/(3*math.sqrt(3)*0.246)
-    epsilon=1/0.06
+    epsilon=1/0.06*10
     if q*scaling_factor*d_s<0.01:
         return 1439.96*d_s*4*np.pi/epsilon #in eV nm^2
     else:
@@ -80,10 +80,7 @@ def C2T_eigenvalue(state):
     return eigvalue
 
 def all_c2t_evals(states,states_prime):
-    arr = [C2T_eigenvalue(states[0]),C2T_eigenvalue(states[1]),
-        C2T_eigenvalue(states_prime[0]),C2T_eigenvalue(states_prime[1]),
-            C2T_eigenvalue(states[0]),C2T_eigenvalue(states[1]),
-        C2T_eigenvalue(states_prime[0]),C2T_eigenvalue(states_prime[1])]
+    arr = [C2T_eigenvalue(states[0]),C2T_eigenvalue(states[1])]
     return arr
     
 def overlap(state1,state2,shift_matrix):
@@ -107,25 +104,30 @@ def build_overlaps(bz,model_params):
             params = model_params, N_bands = 2, 
             lattice = lattice,
             neighbor_table = neighbor_table,return_states = True )
+        if abs(energies[0]-energies[1])<1e-10 and True: #degeneracy
+            print("degeneracy")
+            energies_new, new_states = gbs.find_energies(
+                    k+np.array([1e-8,0]),
+                params = model_params, N_bands = 2, 
+                lattice = lattice,
+                neighbor_table = neighbor_table,return_states = True )
+            print(states[:,0])
+            print(np.linalg.norm(states[0]))
+            print(np.linalg.norm([np.vdot(states[0],new_states[0]),
+                    np.vdot(states[0],new_states[1])]))
+            print(np.linalg.norm([np.vdot(states[1],new_states[0]),
+                    np.vdot(states[1],new_states[1])]))
+            states = new_states
         print(energies)
-        # fudge K' using time reversal
-        energies_prime, states_prime = gbs.find_energies(-np.array(k),
-            params = model_params, N_bands = 2, 
-            lattice = lattice,
-            neighbor_table = neighbor_table,return_states = True )
-        es.append([energies[0],energies[1],
-                    energies_prime[0],energies_prime[1],
-                    energies[0],energies[1],
-                    energies_prime[0],energies_prime[1]])
+        es.append([energies[0],energies[1]])
         ss.append(states)
-        ss_prime.append(np.conjugate(states_prime))
-        c2t_evals.append(all_c2t_evals(states,np.conjugate(states_prime)))
+        c2t_evals.append(all_c2t_evals(states,np.conjugate(states)))
     for G in G_coeffs:
         s_matrices.append(shift_matrix(G,lattice))
         s_matrices_prime.append(shift_matrix(-G,lattice)) #K' fudge
     
     overlaps = np.zeros((len(G_coeffs),len(k_points),
-                        len(k_points),8,8),dtype = complex)
+                        len(k_points),2,2),dtype = complex)
     for i in range(len(k_points)):
         print(i)
         for j in range(len(k_points)):
@@ -133,11 +135,6 @@ def build_overlaps(bz,model_params):
                 for m in range(2):
                     for n in range(2):
                         overlaps[g,i,j,m,n] = overlap(ss[i][m],ss[j][n],s_matrices[g])
-                        overlaps[g,i,j,m+2,n+2]=overlap(ss_prime[i][m],
-                                    ss_prime[j][n],s_matrices_prime[g])
-                        #second spin component
-                        overlaps[g,i,j,m+4,n+4] = overlaps[g,i,j,m,n] 
-                        overlaps[g,i,j,m+6,n+6]= overlaps[g,i,j,m+2,n+2]
     
     return es, overlaps, c2t_evals
 def v_hf(bz,overlaps,model_params,P):
@@ -145,7 +142,7 @@ def v_hf(bz,overlaps,model_params,P):
     G_s = bz["G_values"]
     k_points = bz["k_points"]
     V_coulomb = model_params["V_coulomb"]
-    V_hf = np.zeros((len(k_points),8,8),dtype = complex)
+    V_hf = np.zeros((len(k_points),2,2),dtype = complex)
 
     direct_potential = [] #at G
     for g in range(len(G_coeffs)):
@@ -157,7 +154,7 @@ def v_hf(bz,overlaps,model_params,P):
             temp = 0
         direct_potential.append(temp)
     for k in range(len(k_points)):
-        temp = np.zeros((8,8),dtype = complex)
+        temp = np.zeros((2,2),dtype = complex)
         for g in range(len(G_coeffs)):
             temp = temp + \
                     direct_potential[g]*V_coulomb(G_s[g])*\
@@ -192,6 +189,8 @@ def iterate_hf(bz,energies, overlaps, model_params, P, k_dep_filling = False):
     for e in energies:
         en.append(np.diag(e))
     h_mf = np.array(en) + v_hf(bz,overlaps,model_params, P)
+    k = 0
+#    print("h_mf c2t invariance: ",np.linalg.norm(np.diag(c2t_eigenvalues[k]) @ np.conjugate(h_mf[k])@ np.diag(np.conjugate(c2t_eigenvalues[k])) - h_mf[k]))
     G_coeffs = bz["G_coeffs"]
     G_s = bz["G_values"]
     k_points = bz["k_points"]
@@ -244,8 +243,8 @@ if __name__ == "__main__":
                     4*np.pi/(3*math.sqrt(3)*0.246) , #this will actually be computed from theta, 0.246nm = lattice const. of graphene
                     "single_gate_screening": False, #single or dual gate screening?
                     "q_lattice_radius": 10,
-                    "size_bz": 10,
-                    "description": "v=-3, small bz, containing 0",
+                    "size_bz": 18,
+                    "description": "v=-3, bigger sym. bz, preserving c2t,",
                     "V_coulomb" : V_coulomb,
                     "filling": 0
                     }
@@ -253,21 +252,21 @@ if __name__ == "__main__":
     bz = brillouin_zone
     N_k = len(brillouin_zone["k_points"])
     print("Number of points is:", N_k)
-    a = np.array([1,0,0,0,0,0,0,0])
+    a = np.array([1,0])
     #a[:model_params["filling"]] = 1
     P_k=np.diag(a)
     P_0 = [P_k.copy() for k in range(N_k)]
     #for d in range(int(N_k/2)):
     #    P_0[d][0,0]=1
 
-    id = 5
+    id = 8
     print(id)
     sp_energies, overlaps, c2t_eigenvalues = build_overlaps(brillouin_zone,model_params)
 
     for m in range(1):
         P, energies,states = iterate_hf(brillouin_zone,sp_energies,overlaps,
-                model_params, P_0,True)
-    for m in range(40):
+                model_params, P_0,False)
+    for m in range(120):
         P_old = P.copy()
         P, hf_eig,hf_states = iterate_hf(brillouin_zone,sp_energies,overlaps,
                 model_params, P_old,False)
@@ -276,13 +275,6 @@ if __name__ == "__main__":
     
     v = v_hf(bz,overlaps,model_params,P)
     k = 0
-    print("V(k) c2t invar: ",np.linalg.norm(np.diag(c2t_eigenvalues[k]) @ np.conjugate(v[k])@ np.diag(np.conjugate(c2t_eigenvalues[k])) - v[k]))
-    #while input("continue? y/n") == "y":
-    #    for m in range(50):
-    #        P_old = P.copy()
-    #        P, hf_eig,hf_states = iterate_hf(brillouin_zone,sp_energies,overlaps, model_params, P_old)
-            #print("Total hf energy", hf_energy_total(brillouin_zone,sp_energies,overlaps, model_params, P_old))
-    #        print(np.linalg.norm(np.array(P).ravel()-np.array(P_old).ravel()))
     
     f_out = h5py.File('data/hf_{}.hdf5'.format(id), 'w')
     f_out.create_dataset("overlaps", data = overlaps)
@@ -297,14 +289,7 @@ if __name__ == "__main__":
             f_out.attrs[key] = model_params[key]
     f_out.close()
 
-    print(P[0])
-    print(type(sp_energies))
-    for i in range(4):
-        plt.plot(np.array(sp_energies)[30:60,i],label = str(i))
-        #plt.plot(np.array(energies)[40:60,i])
-    plt.legend()
-    plt.show()
-    for i in range(4):
+    for i in range(2):
         plt.plot([np.array(hf_eig)[m,i] for m in brillouin_zone["trajectory"]])
 
     plt.xticks(brillouin_zone["ticks_coords"],brillouin_zone["ticks_vals"])

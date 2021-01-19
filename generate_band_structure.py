@@ -112,7 +112,7 @@ def find_energies(k_eval, params, N_bands ,k_lattice_radius=10.5, lattice = None
         zipped = sorted(sorted(zip(energies,np.transpose(states)),key=lambda pair:abs(pair[0]))[:N_bands],key=lambda pair:pair[0])
         tuples = zip(*zipped)
         energies, states = [list(t) for t in tuples]
-        return energies,states
+        return energies,np.array(states)
     else:
         energies = sorted(np.linalg.eigvalsh(H),key = abs)
         return sorted(energies[:N_bands])
