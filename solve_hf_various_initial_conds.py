@@ -12,53 +12,32 @@ if __name__ == "__main__":
                 
     """ LOADING """
 
-    id = 8
-    hf_solution = hf.read_hf_from_file("data/hf_{}.hdf5".format(id))
-    for key,val in hf_solution.items():
-        print("Loading key:", key)
-        exec(key + '=val')
-    print(model_params)
- 
+    id = 12
+    solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
+    solver.params["epsilon"] = 1/0.06*100
     P_1=[]
-    for k in range(N):
-        a = np.array([1+0j,0,])
-        states = 1/math.sqrt(2)*np.transpose([np.conjugate(c2t_eigenvalues[k][:2]),[0,0]])
-        #states = 1/math.sqrt(2)*np.transpose([np.sqrt(c2t_eigenvalues[k][:2]),[0,0]])
+    a = np.array([1+0j,0,])
+    print(solver.eval_sp(tbglib.q1))
+
+    for k in range(solver.N_k):
         P_k=np.diag(a)
-        #P_k[:2,:2]= np.conjugate(states) @\
-        #        np.diag(a)[:2,:2] @  np.transpose(states)
-        P_1.append(P_k)
+        P_1.append(P_k.copy())
+    solver.reset_P(P_1)
 
- 
-    zero = bz["index_0"]
-    
-    k = 0
-    print("P c2t invariance:",np.linalg.norm(np.diag(c2t_eigenvalues[k]) @ P_1[k] @ np.diag(np.conjugate(c2t_eigenvalues[k])) - np.transpose(P_1[k])))
-    P, energies,states = hf.iterate_hf(bz,sp_energies,overlaps, model_params,
-            P_1, k_dep_filling = False)
-    print("P c2t invariance:",np.linalg.norm(np.diag(c2t_eigenvalues[k]) @ P[k] @ np.diag(np.conjugate(c2t_eigenvalues[k])) - np.transpose(P[k])))
-    for m in range(50):
-        P_old = P.copy()
-        P, hf_eig,hf_states = hf.iterate_hf(bz,sp_energies,overlaps,
-                model_params, P_old,False)
-        print(m,"P c2t invariance:",np.linalg.norm(np.diag(c2t_eigenvalues[k]) @ P[k] @ np.diag(np.conjugate(c2t_eigenvalues[k])) - np.transpose(P[k])))
-        print(np.linalg.norm(np.array(P).ravel()-np.array(P_old).ravel()))
-
-    for k in range(len(bz["k_points"])):
+    for m in range(4):
+        solver.iterate_hf(True,False)
         for i in range(2):
-            if np.linalg.norm(states[k][2:,i])>0.01:
-                print(states[k][:,i])
-
-        print("V(k) c2t invar with P_0: ",np.linalg.norm(np.diag(c2t_eigenvalues[k]) @ np.conjugate(v[k])@ np.diag(np.conjugate(c2t_eigenvalues[k])) - v[k]))
-        print("P_0 c2t invar",np.linalg.norm(np.diag(c2t_eigenvalues[k]) @ P_1[k] @\
-            np.diag(np.conjugate(c2t_eigenvalues[k])) - np.transpose(P_1[k])))
-        print("HF sol after many iter",np.linalg.norm(np.diag(c2t_eigenvalues[k]) @ P[k] @ np.diag(np.conjugate(c2t_eigenvalues[k])) - np.transpose(P[k])))
-
+            plt.plot([solver.eval(k)[i] for k in solver.bz["trajectory_points"]],
+                    label ="after" +str(m)+" hf iter"+ str(i))
 
     for i in range(2):
-        plt.plot(np.array(energies)[:,i] ,label =
-        "after one hf iter"+ str(i))
+        plt.plot([solver.eval_sp(k)[i] for k in solver.bz["trajectory_points"]],
+                label ="sp energies")
+    plt.xticks(solver.bz["ticks_coords"],solver.bz["ticks_vals"])
+    plt.grid()
+    plt.legend()
     plt.show()
+
 
     """ PLOTTING """
     for i in range(2):

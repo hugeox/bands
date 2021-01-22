@@ -8,6 +8,8 @@ s0 = np.array([[1, 0],[ 0, 1]])
 sx = np.array([[0, 1],[ 1, 0]])
 sy = np.array([[0, -1j],[1j, 0]])
 sz = np.array([[1, 0],[0, -1]])
+theta = 2*math.pi/3
+c3_rot = np.array([[cos(theta),-sin(theta)],[sin(theta),cos(theta)]])
 
 q1 = np.array([0, -1.0])
 q2 = np.array([math.sqrt(3)/2,1.0/2])
@@ -19,7 +21,6 @@ g1 = q1 -q2
 g2_coeff = [1,2]
 g2 = q1 + 2*q2
 g_matrix = np.transpose([g1,g2])
-print(g1,g2,g1+g2)
 
 phi = 2 * np.pi /3
 def norm(x):
@@ -89,7 +90,7 @@ def is_equilateral_triangle(a,b,c):
     return True
 def eval(k_eval, data, k_points):
     """ evaluates data at k_eval by interpolating"""
-    print(k_eval)
+    #print(k_eval)
     k_eval,G = decompose(k_eval)
     k_eval = k_eval + np.array([0.000000432,0.0000000343])
     idx = np.argpartition(np.linalg.norm(np.array(k_points) - k_eval ,axis=1),3)
@@ -102,6 +103,7 @@ def eval(k_eval, data, k_points):
     if abs(f0[0]-f1[0])>30:
         print("Warning, values at closely lying k points very differnt",f0,f1)
         print("k_eval is:", k_eval, " and a -b:", np.linalg.norm(a-b))
+        print("a is:",a,"and b is:", b)
     center =1/3*( a + b + c )
     l = np.linalg.norm(a-center)
     if is_equilateral_triangle(a,b,c):
@@ -122,17 +124,19 @@ def build_bz(N=10):
     bz["trajectory"]=[]
     bz["ticks_vals"]=["Ktop"]
     bz["ticks_coords"]=[0]
-    bz["G_values"] = [np.array([0,0]),g1,g2,-g1-g2,-g1,-g2,g1+g2] 
-    bz["G_neg_indices"] = [0,4,5,6,1,2,3] 
+    bz["G_values"] = [np.array([0,0]),g1,g2,-g1-g2,-g1,-g2,g1+g2,g1-g2,g2-g1] 
+    bz["G_neg_indices"] = [0,4,5,6,1,2,3,8,7] 
     # only closest in recip space, need to be symmetric for K' fudge to work
     bz["G_coeffs"] =[coeffs(k,as_int=True) for k in bz["G_values"]]
     bz["k_points"] = []
     bz["trajectory"] = [] #
     bz["trajectory_points"] = []
+    bz["c3_indices"] = []
+    bz["c3_indices_of_Gs"] = []
 
     for m in range(-6*N-4,6*N+4):
         for n in range(-6*N-4,6*N+4):
-            q = m/N*g1+n/N*(g1+g2)#g1/501/N+g2/501/N
+            q = m/N*g1+n/N*(g1+g2) + q1/N#g1/501/N+g2/501/N
             if in_bz(q):
                 if m==n==0:
                     bz["index_0"]=len(bz["k_points"])
@@ -141,34 +145,53 @@ def build_bz(N=10):
     idx = (np.linalg.norm(np.array(bz["k_points"]) - np.array([0,0]) ,axis=1)).argmin()
     bz["k_points_diff"] = np.array(bz["k_points"]) - bz["k_points"][idx]
 
+    for k in range(len(bz["k_points"])):
+        k_rot, G = decompose(c3_rot @ bz["k_points"][k]) #k_rot + G= c3 @ k
+        idx_G = (np.linalg.norm(np.array(bz["G_values"]) - G ,axis=1)).argmin()
+        if np.linalg.norm(bz["G_values"][idx_G]-G)>1e-7:
+            print("Warning, G is",G, "G found closest is", bz["G_values"][idx_G])
+        idx = (np.linalg.norm(np.array(bz["k_points"]) - k_rot ,axis=1)).argmin()
+        #print(bz["k_points"][idx],k_rot)
+        #print(bz["k_points"][idx],k_rot)
+        bz["c3_indices"].append(idx)
+        bz["c3_indices_of_Gs"].append(idx_G)
+
 
     N_t = 40
     for i in range(N_t+1):
-        point = -q1 + 2*q1*(i/N_t) + np.array([0.0002134,0.000143])
+        point = -2*q1 + 2*q1*(i/N_t) + np.array([0.000001237,0.000001143])
         idx = closest_in_bz(bz["k_points"],point)
         bz["trajectory"].append(idx)
         bz["trajectory_points"].append(point)
-    bz["ticks_vals"].append("K")
+    bz["ticks_vals"].append("K_top")
     bz["ticks_coords"].append(int(i/2))
+    bz["ticks_vals"].append("K")
+    bz["ticks_coords"].append(len(bz["trajectory"]))
+
+    for i in range(1,N_t+1):
+        point = q1*(i/N_t) + np.array([0.000001237,0.000001143])
+        idx = closest_in_bz(bz["k_points"],point)
+        bz["trajectory"].append(idx)
+        bz["trajectory_points"].append(point)
     bz["ticks_vals"].append("-Ktop=Gamma")
     bz["ticks_coords"].append(len(bz["trajectory"]))
 
     for i in range(1,N_t+1):
-        point = q1 -(2*q1+q2)*i/N_t + np.array([0.0002134,0.000143])
+        point = q1 -(2*q1+q2)*i/N_t + np.array([0.00000032134,0.000001143])
         idx = closest_in_bz(bz["k_points"],point)
         bz["trajectory"].append(idx)
         bz["trajectory_points"].append(point)
     bz["ticks_vals"].append("Gamma")
     bz["ticks_coords"].append(len(bz["trajectory"]))
     for i in range(1,N_t+1):
-        point = q1 -(2*q1+q2)*i/N_t + np.array([0.0002134,0.000143])
+        point = q1 -(2*q1+q2)*i/N_t + np.array([0.0000012137,0.000001143])
         idx = closest_in_bz(bz["k_points"],point)
         bz["trajectory"].append(idx)
         bz["trajectory_points"].append(point)
     bz["ticks_vals"].append("Gamma")
     bz["ticks_coords"].append(len(bz["trajectory"]))
     for i in range(1,N_t+1):
-        point = -q1 -q2 +q2*i/N_t + np.array([0.0002134,0.000143])
+        point = -q1 -q2 +q2*i/N_t + np.array([0.0000012139,0.00000145])
         idx = closest_in_bz(bz["k_points"],point)
         bz["trajectory"].append(idx)
         bz["trajectory_points"].append(point)
@@ -183,6 +206,9 @@ if __name__ =="__main__":
     #print(build_bz())
     m = np.array(build_bz(10)["k_points"])
     print(m.shape)
+    bz = build_bz(3)
+    print(bz["c3_indices"])
+    print(bz["k_points"])
 
     plt.scatter(m[:,0],m[:,1])
     plt.show()
