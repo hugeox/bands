@@ -8,25 +8,33 @@ import tbglib
 import h5py
 import hf
 
+def create_state():
+    states = 1/2*(tbglib.s0 + tbglib.sx)
+    m = np.zeros(2,dtype = complex)
+    m[:1]=1
+    P_new = np.conjugate(states) @\
+                 np.diag(m) @  np.transpose(states)
+    return states
 if __name__ == "__main__":
                 
     """ LOADING """
 
     id = 14
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
-    solver.params["epsilon"] = 1/0.06
+    solver.params["epsilon"] = 1/0.06 * 100
     P_1=[]
     a = np.array([1+0j,0,])
     print(solver.eval_sp(tbglib.q1))
 
     for k in range(solver.N_k):
-        P_k=np.diag(a)
+        P_k = create_state()
+        #P_k=np.diag(a)
         P_1.append(P_k.copy())
     solver.reset_P(P_1)
 
-    for m in range(50):
-        solver.iterate_hf(True,False, False)
-        if m%10==0:
+    for m in range(4):
+        solver.iterate_hf(True,True, True)
+        if m%8==0:
             for i in range(2):
                 plt.plot([solver.eval(k)[i] for k in solver.bz["trajectory_points"]],
                         label ="after" +str(m)+" hf iter"+ str(i))

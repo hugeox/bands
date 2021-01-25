@@ -124,8 +124,24 @@ def build_bz(N=10, shifted = False):
     bz["trajectory"]=[]
     bz["ticks_vals"]=["Ktop"]
     bz["ticks_coords"]=[0]
-    bz["G_values"] = [np.array([0,0]),g1,g2,-g1-g2,-g1,-g2,g1+g2,g1-g2,g2-g1] 
-    bz["G_neg_indices"] = [0,4,5,6,1,2,3,8,7] 
+    bz["G_values"] =[np.array([0,0])]# [np.array([0,0]),g1,g2,-g1-g2,-g1,-g2,g1+g2,g1-g2,g2-g1] 
+    bz["G_neg_indices"] =[0]# [0,4,5,6,1,2,3,8,7] 
+    nbz = 1 #set to 2 for better c3 invariance of hartree
+    for m in range(-nbz,nbz+1):
+        for n in range(nbz+1):
+            if m>-1 and n==0:
+                continue
+            q = m*g1+n*g2
+            bz["G_values"].append(q)
+            bz["G_values"].append(-q)
+            bz["G_neg_indices"].append(len(bz["G_values"])-1)# [0,4,5,6,1,2,3,8,7] 
+            bz["G_neg_indices"].append(len(bz["G_values"])-2)# [0,4,5,6,1,2,3,8,7] 
+    #bz["G_values"]=[np.array([0,0]),g1,g2,-g1-g2,-g1,-g2,g1+g2] 
+    #bz["G_neg_indices"] =[0,4,5,6,1,2,3] 
+
+    print(bz["G_values"])
+    print(bz["G_neg_indices"])
+
     # only closest in recip space, need to be symmetric for K' fudge to work
     bz["G_coeffs"] =[coeffs(k,as_int=True) for k in bz["G_values"]]
     bz["k_points"] = []
@@ -144,16 +160,19 @@ def build_bz(N=10, shifted = False):
                 if m==n==0:
                     bz["index_0"]=len(bz["k_points"])
                 bz["k_points"].append(q)
+    print(bz["k_points"])
 
     idx = (np.linalg.norm(np.array(bz["k_points"]) - np.array([0,0]) ,axis=1)).argmin()
     bz["k_points_diff"] = np.array(bz["k_points"]) - bz["k_points"][idx]
 
     for k in range(len(bz["k_points"])):
-        k_rot, G = decompose(c3_rot @ bz["k_points"][k]) #k_rot + G= c3 @ k
+        #works
+        k_rot, G = decompose(np.dot(c3_rot, bz["k_points"][k])) #k_rot + G= c3 @ k
         idx_G = (np.linalg.norm(np.array(bz["G_values"]) - G ,axis=1)).argmin()
-        if np.linalg.norm(bz["G_values"][idx_G]-G)>1e-7:
-            print("Warning, G is",G, "G found closest is", bz["G_values"][idx_G])
         idx = (np.linalg.norm(np.array(bz["k_points"]) - k_rot ,axis=1)).argmin()
+        if np.linalg.norm(bz["k_points"][idx]-k_rot)>1e-7:
+            print("Warning, k rot",k_rot, "G found closest is", bz["G_values"][idx_G])
+
         #print(bz["k_points"][idx],k_rot)
         #print(bz["k_points"][idx],k_rot)
         bz["c3_indices"].append(idx)

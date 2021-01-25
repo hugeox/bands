@@ -78,9 +78,9 @@ def C2T_eigenvalue(state):
         print("C2T Eigvalue is, and its norm is not one: ", eigvalue)
     if abs(eigvalue-eigvalue2)>0.000001:
         print("C2T Eigvalue is, and is not equal with second method : ", eigvalue)
-    np.multiply(np.sqrt(eigvalue),state,state)
-    eigvalue = np.conjugate(state[a+1])/state[a]
-    print("Should be 1:", eigvalue)
+    #np.multiply(np.sqrt(eigvalue),state,state)
+    #eigvalue = np.conjugate(state[a+1])/state[a]
+    #print("Should be 1:", eigvalue)
     return eigvalue
 def c3_eval(state, rotated_state):
     a = 0
@@ -90,12 +90,14 @@ def c3_eval(state, rotated_state):
     new_state[0] = np.exp((0+1j)*1*tbglib.theta)*state[0]
     eigvalue = new_state[0]/rotated_state[a]
     eigvalue2 = new_state[1]/rotated_state[a+1]
+    #print("new state", new_state)
+    #print("rotated state", rotated_state[:2])
     if abs(abs(eigvalue)-1)>0.000001:
         print("c3 Eigvalue is, and its norm is not one: ", eigvalue)
     if abs(eigvalue-eigvalue2)>0.000001:
         print("c3 Eigvalue is, and is not equal with second method : ", eigvalue,eigvalue2)
     return eigvalue
-def all_c2t_evals(states,states_prime):
+def all_c2t_evals(states):
     arr = [C2T_eigenvalue(states[0]),C2T_eigenvalue(states[1])]
     return arr
     
@@ -119,7 +121,7 @@ def build_overlaps(bz,model_params):
     deg_points = [] 
     for k in k_points:
         #print(nu)
-        print(k)
+        print("evaluating energies for", k)
         energies, states = gbs.find_energies(k,
             params = model_params, N_bands = 2, 
             lattice = lattice,
@@ -137,22 +139,13 @@ def build_overlaps(bz,model_params):
                     np.vdot(states[0],new_states[1])]))
             print(np.linalg.norm([np.vdot(states[1],new_states[0]),
                     np.vdot(states[1],new_states[1])]))
-            all_c2t_evals(new_states,np.conjugate(new_states).copy()) 
+            all_c2t_evals(new_states) 
             # now the eigenvalue of new_states is one, form sub.pol.states at k
-
-
-            
-            
-            
-            
-            
-            
-            
             states = new_states
         nu = nu +1
-        print(energies)
+        print("SP ENERGIES", energies)
         es.append([energies[0],energies[1]])
-        c2t_evals.append(all_c2t_evals(states,np.conjugate(states).copy()))
+        c2t_evals.append(all_c2t_evals(states))
         ss.append(states)
     for G in G_coeffs:
         s_matrices.append(shift_matrix(G,lattice))
@@ -192,7 +185,7 @@ def v_hf(bz,overlaps,model_params,P,V_c):
         for k in range(len(k_points)):
             temp = temp + \
                  np.trace(P[k] @ np.conjugate(overlaps[g,k,k,:,:]))
-        if g==0 or True: #remove 0 component of V
+        if g==0 and True: #remove 0 component of V
             temp = 0
         direct_potential.append(temp)
     for k in range(len(k_points)):
@@ -202,12 +195,12 @@ def v_hf(bz,overlaps,model_params,P,V_c):
                     direct_potential[g]*V_coulomb(G_s[g])*\
                     overlaps[g,k,k,:,:]
             for l in range(len(k_points)):
-                temp = temp -\
+                temp = temp - \
                     V_coulomb(G_s[g]+k_points[l]-k_points[k])*\
                     overlaps[g,k,l,:,:]@\
                             np.matrix.transpose(P[l])@\
                             np.matrix.transpose(np.matrix.conjugate(
-                            overlaps[g,k,l,:,:]))
+                           overlaps[g,k,l,:,:]))
 
 
         V_hf[k,:,:]=model_params["scaling_factor"]**2*temp/(len(k_points)*1.5*math.sqrt(3))
@@ -294,9 +287,12 @@ class hf_solver(object):
         for k in f_in.keys():
             print(k)
             hf_solution[k] = f_in[k][...]
+        
         SIZE_BZ = f_in.attrs["size_bz"]
         for key in f_in.attrs.keys():
             model_params[key] = f_in.attrs[key] 
+            if key == "description":
+                print(f_in.attrs[key])
         bz = tbglib.build_bz(SIZE_BZ,model_params["shifted_bz"])
         self.bz = bz 
         f_in.close()
@@ -308,6 +304,7 @@ class hf_solver(object):
         self.P = hf_solution["P_hf"]
         self.c2t_eigenvalues = hf_solution["c2t_eigenvalues"]
         self.c3_eigenvalues = hf_solution["c3_eigenvalues"]
+        print(self.c3_eigenvalues)
         self.N_k = len(bz["k_points"])
     def reset_P(self,P_in = None):
         if P_in == None:
@@ -330,18 +327,30 @@ class hf_solver(object):
             return 1439.96*2*np.pi*math.tanh(q*scaling_factor*d_s)/\
                     (q*scaling_factor*epsilon)
     def iterate_hf(self,check_c2t = False,check_c3 = False,impose_c2t = False):
+        if check_c3:
+            s = reduce(lambda x, k: x + np.linalg.norm(np.diag(self.c3_eigenvalues[k])\
+                            @ self.P[self.bz["c3_indices"][k]] @ \
+                            np.diag(np.conjugate(self.c3_eigenvalues[k])) \
+                            - self.P[k]),range(self.N_k))
+            print("\nHF solution c3 invariance:",s)
         P, energies,states = iterate_hf(self.bz,self.sp_energies,
                 self.overlaps,
                 self.params, self.P,self.V_coulomb,False)
         if impose_c2t:
             for k in range(self.N_k):
-                P[k] = 0.5*np.diag(np.conjugate(self.c2t_eigenvalues[k])) @ np.transpose(P[k]) @ np.diag(self.c2t_eigenvalues[k])+ 0.5 * P[k]
+                P[k] = 0.5*np.diag(np.conjugate(self.c2t_eigenvalues[k])) \
+                        @ np.transpose(P[k]) @ np.diag(self.c2t_eigenvalues[k])+ 0.5 * P[k]
         if check_c2t:
-            s = reduce(lambda x, k: x + np.linalg.norm(np.diag(self.c2t_eigenvalues[k]) @ P[k] @ np.diag(np.conjugate(self.c2t_eigenvalues[k])) - np.transpose(P[k])),range(self.N_k))
+            s = reduce(lambda x, k: x +
+                    np.linalg.norm(np.diag(self.c2t_eigenvalues[k])\
+                    @ P[k] @ np.diag(np.conjugate(self.c2t_eigenvalues[k])) \
+                    - np.transpose(P[k])),range(self.N_k))
             print("\nHF solution c2t invariance:",s)
         if check_c3:
-            s = reduce(lambda x, k: x + np.linalg.norm(np.diag(self.c3_eigenvalues[k]) @ P[self.bz["c3_indices"][k]] @ np.diag(np.conjugate(self.c3_eigenvalues[k])) \
-                - P[k]),range(self.N_k))
+            s = reduce(lambda x, k: x + np.linalg.norm(np.diag(self.c3_eigenvalues[k])\
+                            @ P[self.bz["c3_indices"][k]] @ \
+                            np.diag(np.conjugate(self.c3_eigenvalues[k])) \
+                            - P[k]),range(self.N_k))
             print("\nHF solution c3 invariance:",s)
         print("HF distance", 
                 np.linalg.norm(np.array(P).ravel()-np.array(self.P).ravel()))
@@ -358,7 +367,16 @@ class hf_solver(object):
         v = v_hf(self.bz,self.overlaps,self.params,self.P,self.V_coulomb)
         print("V(k) c2t invar: ",np.linalg.norm(np.diag(self.c2t_eigenvalues[k]) @ np.conjugate(v[k])@ np.diag(np.conjugate(self.c2t_eigenvalues[k])) - v[k]))
         v = v_hf(self.bz,self.overlaps,self.params,self.P_0,self.V_coulomb)
-        print("Initial V(k) c2t invar: ",np.linalg.norm(np.diag(self.c2t_eigenvalues[k]) @ np.conjugate(v[k])@ np.diag(np.conjugate(self.c2t_eigenvalues[k])) - v[k]))
+     #   print("Initial V(k) c2t invar: ",np.linalg.norm(np.diag(self.c2t_eigenvalues[k]) @ np.conjugate(v[k])@ np.diag(np.conjugate(self.c2t_eigenvalues[k])) - v[k]))
+        print("Initial V(k) c3 invar: ",
+                        np.linalg.norm(np.diag(self.c3_eigenvalues[k]) @ \
+                        np.array( v[k])@ \
+                        np.diag(np.conjugate(self.c3_eigenvalues[k])) -v[self.bz["c3_indices"][k]]))
+        v = v_hf(self.bz,self.overlaps,self.params,self.P,self.V_coulomb)
+        print("V(k) c3 invar: ",
+                        np.linalg.norm(np.diag(self.c3_eigenvalues[k]) @ \
+                        np.array(v[self.bz["c3_indices"][k]])@ \
+                        np.diag(np.conjugate(self.c3_eigenvalues[k])) - v[k]))
     def save(self,filepath):
         f_out = h5py.File(filepath, 'w')
         f_out.create_dataset("overlaps", data = self.overlaps)
@@ -381,27 +399,40 @@ if __name__ == "__main__":
                     "w_AA" :80, #in meV
                     "w_AB" : 110,#110 #in meV
                     "v_dirac" : int(19746/2), #v_0 k_D in meV
-                    "epsilon" : 1/0.06 * 10,
+                    "epsilon" : 1/0.06,
                     "d_s": 40, #screening length in nm
                     "scaling_factor": 2* sin(1.09*np.pi/180)*\
                     4*np.pi/(3*math.sqrt(3)*0.246) , #this will actually be computed from theta, 0.246nm = lattice const. of graphene
                     "single_gate_screening": False, #single or dual gate screening?
-                    "q_lattice_radius": 11,
-                    "size_bz": 18,
+                    "q_lattice_radius": 10,
+                    "size_bz": 3,
                     "shifted_bz": True,
-                    "description": "v=-3, big bz c3 symmetric, c2t symmetric, avoiding degeneracy points, weak field",
+                    "description": "v=-3, big bz c3 symmetric, c2t symmetric, not avoiding degeneracy points",
                     "V_coulomb" : V_coulomb,
                     "filling": -3,
-                    "hf_iters":50
+                    "hf_iters":1
                     }
 
     solver = hf_solver(model_params,None)
 
-    id = 14
+    id = 15
     print(id)
 
     for m in range(solver.params["hf_iters"]):
-        solver.iterate_hf()
+        solver.iterate_hf(True,True,False)
+    for k in range(solver.N_k-1):
+        print("one",solver.hf_eigenvalues[k])
+        print("rotated", solver.hf_eigenvalues[solver.bz["c3_indices"][k]])
+        a = solver.overlaps[0,k,k+1,:,:]
+        b =  solver.overlaps[0,solver.bz["c3_indices"][k],\
+                solver.bz["c3_indices"][k+1],:,:]
+        c = np.linalg.norm(np.diag(solver.c3_eigenvalues[k]) @ \
+            np.array( a)@ \
+            np.diag(np.conjugate(solver.c3_eigenvalues[k+1])) -b )
+        print("overlap c3 invar:", c)
+        print("g :", solver.bz["c3_indices_of_Gs"][k])
+        print("g :", solver.bz["c3_indices_of_Gs"][k+1])
+    solver.check_v_c2t_invariance()
 
     solver.save("data/hf_{}.hdf5".format(id))
     
