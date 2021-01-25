@@ -17,7 +17,7 @@ def V_coulomb(q_vec):
     d_s = 40 #screening lenght in nm
     scaling_factor = 2* sin(1.09*np.pi/180)*\
                 4*np.pi/(3*math.sqrt(3)*0.246)
-    epsilon=1/0.06* 5
+    epsilon=1/0.06
     if q*scaling_factor*d_s<0.01:
         return 1439.96*d_s*4*np.pi/epsilon #in eV nm^2
     else:
@@ -69,6 +69,7 @@ def shift_matrix(G,lattice):
     return M
 
 def C2T_eigenvalue(state):
+    """ actually makes the eigenvalue real"""
     a = 0
     eigvalue = np.conjugate(state[a+1])/state[a]
     #eigenvalue = s/counter
@@ -77,6 +78,9 @@ def C2T_eigenvalue(state):
         print("C2T Eigvalue is, and its norm is not one: ", eigvalue)
     if abs(eigvalue-eigvalue2)>0.000001:
         print("C2T Eigvalue is, and is not equal with second method : ", eigvalue)
+    np.multiply(np.sqrt(eigvalue),state,state)
+    eigvalue = np.conjugate(state[a+1])/state[a]
+    print("Should be 1:", eigvalue)
     return eigvalue
 def c3_eval(state, rotated_state):
     a = 0
@@ -124,22 +128,32 @@ def build_overlaps(bz,model_params):
             print("degeneracy")
             deg_points.append(nu)
             energies_new, new_states = gbs.find_energies(
-                    k+np.array([1e-7,1e-7]),
+                    k+np.array([1e-8,1e-8]),
                 params = model_params, N_bands = 2, 
                 lattice = lattice,
                 neighbor_table = neighbor_table,return_states = True )
-            print("Degenerate state 1", states[0][:2])
-            print("Degenerate state 2", states[1][:2])
+            print("\n first evals")
             print(np.linalg.norm([np.vdot(states[0],new_states[0]),
                     np.vdot(states[0],new_states[1])]))
             print(np.linalg.norm([np.vdot(states[1],new_states[0]),
                     np.vdot(states[1],new_states[1])]))
+            all_c2t_evals(new_states,np.conjugate(new_states).copy()) 
+            # now the eigenvalue of new_states is one, form sub.pol.states at k
+
+
+            
+            
+            
+            
+            
+            
+            
             states = new_states
         nu = nu +1
         print(energies)
         es.append([energies[0],energies[1]])
+        c2t_evals.append(all_c2t_evals(states,np.conjugate(states).copy()))
         ss.append(states)
-        c2t_evals.append(all_c2t_evals(states,np.conjugate(states)))
     for G in G_coeffs:
         s_matrices.append(shift_matrix(G,lattice))
         s_matrices_prime.append(shift_matrix(-G,lattice)) #K' fudge
@@ -262,7 +276,7 @@ class hf_solver(object):
         if type(model_params)==str:
             return self.load(model_params)
         self.params = model_params
-        self.bz = tbglib.build_bz(self.params["size_bz"])
+        self.bz = tbglib.build_bz(self.params["size_bz"],self.params["shifted_bz"])
         a = np.array([1,0])
         P_k=np.diag(a)
         self.N_k = len(self.bz["k_points"])
@@ -281,17 +295,19 @@ class hf_solver(object):
             print(k)
             hf_solution[k] = f_in[k][...]
         SIZE_BZ = f_in.attrs["size_bz"]
-        bz = tbglib.build_bz(SIZE_BZ)
-        self.bz = bz 
         for key in f_in.attrs.keys():
             model_params[key] = f_in.attrs[key] 
+        bz = tbglib.build_bz(SIZE_BZ,model_params["shifted_bz"])
+        self.bz = bz 
         f_in.close()
         self.params = model_params
         self.overlaps = hf_solution["overlaps"]
         self.sp_energies = hf_solution["sp_energies"]
+        self.hf_eigenvalues = hf_solution["hf_eigenvalues"]
         self.P_0 = hf_solution["P_0"]
         self.P = hf_solution["P_hf"]
         self.c2t_eigenvalues = hf_solution["c2t_eigenvalues"]
+        self.c3_eigenvalues = hf_solution["c3_eigenvalues"]
         self.N_k = len(bz["k_points"])
     def reset_P(self,P_in = None):
         if P_in == None:
@@ -313,7 +329,7 @@ class hf_solver(object):
         else:
             return 1439.96*2*np.pi*math.tanh(q*scaling_factor*d_s)/\
                     (q*scaling_factor*epsilon)
-    def iterate_hf(self,check_c2t = False,impose_c2t = False):
+    def iterate_hf(self,check_c2t = False,check_c3 = False,impose_c2t = False):
         P, energies,states = iterate_hf(self.bz,self.sp_energies,
                 self.overlaps,
                 self.params, self.P,self.V_coulomb,False)
@@ -323,6 +339,10 @@ class hf_solver(object):
         if check_c2t:
             s = reduce(lambda x, k: x + np.linalg.norm(np.diag(self.c2t_eigenvalues[k]) @ P[k] @ np.diag(np.conjugate(self.c2t_eigenvalues[k])) - np.transpose(P[k])),range(self.N_k))
             print("\nHF solution c2t invariance:",s)
+        if check_c3:
+            s = reduce(lambda x, k: x + np.linalg.norm(np.diag(self.c3_eigenvalues[k]) @ P[self.bz["c3_indices"][k]] @ np.diag(np.conjugate(self.c3_eigenvalues[k])) \
+                - P[k]),range(self.N_k))
+            print("\nHF solution c3 invariance:",s)
         print("HF distance", 
                 np.linalg.norm(np.array(P).ravel()-np.array(self.P).ravel()))
         self.P = P
@@ -361,14 +381,15 @@ if __name__ == "__main__":
                     "w_AA" :80, #in meV
                     "w_AB" : 110,#110 #in meV
                     "v_dirac" : int(19746/2), #v_0 k_D in meV
-                    "epsilon" : 1/0.06,
+                    "epsilon" : 1/0.06 * 10,
                     "d_s": 40, #screening length in nm
                     "scaling_factor": 2* sin(1.09*np.pi/180)*\
                     4*np.pi/(3*math.sqrt(3)*0.246) , #this will actually be computed from theta, 0.246nm = lattice const. of graphene
                     "single_gate_screening": False, #single or dual gate screening?
                     "q_lattice_radius": 11,
                     "size_bz": 18,
-                    "description": "v=-3, big bz c3 symmetric, c2t symmetric, avoiding degeneracy points",
+                    "shifted_bz": True,
+                    "description": "v=-3, big bz c3 symmetric, c2t symmetric, avoiding degeneracy points, weak field",
                     "V_coulomb" : V_coulomb,
                     "filling": -3,
                     "hf_iters":50
@@ -376,7 +397,7 @@ if __name__ == "__main__":
 
     solver = hf_solver(model_params,None)
 
-    id = 13
+    id = 14
     print(id)
 
     for m in range(solver.params["hf_iters"]):

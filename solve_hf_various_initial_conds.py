@@ -12,9 +12,9 @@ if __name__ == "__main__":
                 
     """ LOADING """
 
-    id = 12
+    id = 14
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
-    solver.params["epsilon"] = 1/0.06*100
+    solver.params["epsilon"] = 1/0.06
     P_1=[]
     a = np.array([1+0j,0,])
     print(solver.eval_sp(tbglib.q1))
@@ -24,11 +24,12 @@ if __name__ == "__main__":
         P_1.append(P_k.copy())
     solver.reset_P(P_1)
 
-    for m in range(4):
-        solver.iterate_hf(True,False)
-        for i in range(2):
-            plt.plot([solver.eval(k)[i] for k in solver.bz["trajectory_points"]],
-                    label ="after" +str(m)+" hf iter"+ str(i))
+    for m in range(50):
+        solver.iterate_hf(True,False, False)
+        if m%10==0:
+            for i in range(2):
+                plt.plot([solver.eval(k)[i] for k in solver.bz["trajectory_points"]],
+                        label ="after" +str(m)+" hf iter"+ str(i))
 
     for i in range(2):
         plt.plot([solver.eval_sp(k)[i] for k in solver.bz["trajectory_points"]],

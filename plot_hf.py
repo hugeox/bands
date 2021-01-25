@@ -13,33 +13,24 @@ if __name__ == "__main__":
                 
     """ LOADING """
 
-    id = 9
-    solver = hf.solver("data/hf_{}.hdf5".format(id))
+    id = 14
+    solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
  
-    #misc.check_c2t_invar(hf_eigenstates,bz,c2t_eigenvalues)
-    for i in range(2):
-        plt.plot([tbglib.eval(k,hf_eigenvalues,bz["k_points"])[i] for k in bz["trajectory_points"]],label = "hf_eigenvalues")
-    plt.xticks(bz["ticks_coords"],bz["ticks_vals"])
-    plt.legend()
-    #plt.show()
-
-    """
     fig = plt.figure()
-    X = np.arange(-2.0000023, 2, 0.15)
-    Y = np.arange(-2.00000054, 2, 0.15)
-    Z = np.array([[tbglib.eval(np.array([x,y]),energies,bz["k_points"])[0] for x in X] for y in Y])
+    X = np.arange(-1.5000023, 2, 0.15)
+    Y = np.arange(-1.500000054, 2, 0.15)
+    Z = np.array([[solver.eval(np.array([x,y]))[0] for x in X] for y in Y])
     X, Y = np.meshgrid(X, Y)
     ax = fig.gca(projection='3d')
     surf = ax.plot_surface(X,
             Y,Z)
-    X = np.arange(-2.0000023, 2, 0.15)
-    Y = np.arange(-2.00000054, 2, 0.15)
-    Z = np.array([[tbglib.eval(np.array([x,y]),energies,bz["k_points"])[1] for x in X] for y in Y])
+    X = np.arange(-1.5000023, 2, 0.15)
+    Y = np.arange(-1.50000054, 2, 0.15)
+    Z = np.array([[solver.eval(np.array([x,y]))[1] for x in X] for y in Y])
     X, Y = np.meshgrid(X, Y)
     surf = ax.plot_surface(X,
             Y,Z)
     plt.show()
-    """
  
     
     """ PLOTTING """
