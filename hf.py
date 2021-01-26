@@ -405,9 +405,9 @@ if __name__ == "__main__":
                     4*np.pi/(3*math.sqrt(3)*0.246) , #this will actually be computed from theta, 0.246nm = lattice const. of graphene
                     "single_gate_screening": False, #single or dual gate screening?
                     "q_lattice_radius": 10,
-                    "size_bz": 3,
+                    "size_bz": 12,
                     "shifted_bz": True,
-                    "description": "v=-3, big bz c3 symmetric, c2t symmetric, not avoiding degeneracy points",
+                    "description": "v=-3, big bz c3 symmetric, c2t symmetric, avoiding degeneracy points",
                     "V_coulomb" : V_coulomb,
                     "filling": -3,
                     "hf_iters":1
