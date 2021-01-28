@@ -35,29 +35,21 @@ def index_kplusq(bz,index_k,q):
 if __name__ == "__main__":
     #execution
                 
-    id = 0
-    hf_solution = hf.read_hf_from_file("data/hf_{}.hdf5".format(id))
-    for key,val in hf_solution.items():
-        print("Loading key:", key)
-        exec(key + '=val')
-    P = P_hf
+    id = 15
+    solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
+    solver.check_v_c2t_invariance()
+    P = solver.P
+    bz = solver.bz
+    hf_eigenvalues = solver.hf_eigenvalues
+    hf_eigenstates = solver.hf_eigenstates
 
     q = np.array([0,0])
-    #q = bz["k_points_diff"][3]
     print("q is equal to:",q)
-    k_points = bz["k_points"]
+    k_points = solver.bz["k_points"]
     filling = int(round(np.real(np.trace(P[0]))))
     N = len(k_points)
     H_mode = np.zeros((7*N,7*N),dtype=complex)
-    #for l in range(N):
-    #    for k in range(N):
-    #        k_plusq = index_kplusq(bz,k,bz["k_points_diff"][l])
-    # fill in qp energies
-    for i in range(8):
-        plt.plot([np.array(hf_eigenvalues)[m,i] for m in bz["trajectory"]])
-    plt.xticks(bz["ticks_coords"],bz["ticks_vals"])
-    plt.legend()
-    plt.show()
+
     for i in range(8-filling):
         for k in range(N):
             k_plusq = index_kplusq(bz,k,q)

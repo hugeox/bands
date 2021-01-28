@@ -19,9 +19,10 @@ if __name__ == "__main__":
                 
     """ LOADING """
 
-    id = 15
+    id = 0
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
-    solver.params["epsilon"] = 1/0.06 *100
+    solver.params["epsilon"] = 1/0.06 * 10
+    solver.params["description"] = "HF, impose c2t"
     P_1=[]
     a = np.array([1+0j,0,])
     print(solver.eval_sp(tbglib.q1))
@@ -32,8 +33,8 @@ if __name__ == "__main__":
         P_1.append(P_k.copy())
     solver.reset_P(P_1)
 
-    for m in range(50):
-        solver.iterate_hf(True,True, True)
+    for m in range(20):
+        solver.iterate_hf(True,True,True ,False)
         if m%10==0:
             for i in range(2):
                 plt.plot([solver.eval(k)[i] for k in solver.bz["trajectory_points"]],
@@ -46,6 +47,8 @@ if __name__ == "__main__":
     plt.grid()
     plt.legend()
     plt.show()
+    id = 1
+    #solver.save("data/hf_{}.hdf5".format(id))
 
 
     """ PLOTTING """

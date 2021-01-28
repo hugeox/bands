@@ -3,6 +3,7 @@ from math import cos,sin
 import math
 import time
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import generate_band_structure as gbs
 import tbglib
 import h5py
@@ -13,15 +14,21 @@ if __name__ == "__main__":
                 
     """ LOADING """
 
-    id = 14
+    id = 17
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
+    for i in range(2):
+        plt.plot([solver.eval_sp(k)[i] for k in solver.bz["trajectory_points"]], label ="single particle")
+    plt.xticks(solver.bz["ticks_coords"],solver.bz["ticks_vals"])
+    plt.grid()
+    plt.legend()
+    plt.show()
  
     fig = plt.figure()
+    ax = fig.gca(projection='3d')
     X = np.arange(-1.5000023, 2, 0.15)
     Y = np.arange(-1.500000054, 2, 0.15)
     Z = np.array([[solver.eval(np.array([x,y]))[0] for x in X] for y in Y])
     X, Y = np.meshgrid(X, Y)
-    ax = fig.gca(projection='3d')
     surf = ax.plot_surface(X,
             Y,Z)
     X = np.arange(-1.5000023, 2, 0.15)
