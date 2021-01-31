@@ -82,12 +82,15 @@ def C2T_eigenvalue(state):
     #eigvalue = np.conjugate(state[a+1])/state[a]
     #print("Should be 1:", eigvalue)
     return eigvalue
-def c3_eval(state, rotated_state):
+def c3_eval(state, rotated_state,valley = False):
     a = 0
     #rot = cos(tbglib.theta)*tbglib.s0 - (0+1j)*sin(tbglib.theta)*tbglib.sz
     new_state = [0,0]
     new_state[1] = np.exp((0+1j)*2*tbglib.theta)*state[1]
     new_state[0] = np.exp((0+1j)*1*tbglib.theta)*state[0]
+    if valley:
+        new_state[1] = np.exp((0+1j)*1*tbglib.theta)*state[1]
+        new_state[0] = np.exp((0+1j)*2*tbglib.theta)*state[0]
     eigvalue = new_state[0]/rotated_state[a]
     eigvalue2 = new_state[1]/rotated_state[a+1]
     #print("new state", new_state)
@@ -109,57 +112,52 @@ def build_overlaps(bz,model_params):
     G_coeffs = bz["G_coeffs"]
     k_points = bz["k_points"]
     q_lattice_radius = model_params["q_lattice_radius"]
+    N_f = model_params["N_f"] #N_flavors
     lattice, neighbor_table = gbs.build_lattice_and_neighbor_table(q_lattice_radius)
     es = []
+    ss = []
+    s_matrices = []
     c2t_evals = []
     c3_evals = []
-    ss_prime = []
-    ss = []
-    s_matrices_prime = []
-    s_matrices = []
-    nu = 0 
-    deg_points = [] 
+    if model_params["valley"]:
+        ss_prime = []
+        s_matrices_prime = []
     for k in k_points:
-        #print(nu)
-        print("evaluating energies for", k)
+        print("evaluating energies for k: ", k)
         energies, states = gbs.find_energies(k,
             params = model_params, N_bands = 2, 
             lattice = lattice,
             neighbor_table = neighbor_table,return_states = True )
-        if abs(energies[0]-energies[1])<1e-10 and True: #degeneracy
-            print("degeneracy")
-            deg_points.append(nu)
-            energies_new, new_states = gbs.find_energies(
-                    k+np.array([1e-8,1e-8]),
-                params = model_params, N_bands = 2, 
-                lattice = lattice,
-                neighbor_table = neighbor_table,return_states = True )
-            print("\n first evals")
-            print(np.linalg.norm([np.vdot(states[0],new_states[0]),
-                    np.vdot(states[0],new_states[1])]))
-            print(np.linalg.norm([np.vdot(states[1],new_states[0]),
-                    np.vdot(states[1],new_states[1])]))
-            all_c2t_evals(new_states) 
-            # now the eigenvalue of new_states is one, form sub.pol.states at k
-            states = new_states
-        nu = nu +1
-        print("SP ENERGIES", energies)
         es.append([energies[0],energies[1]])
         c2t_evals.append(all_c2t_evals(states))
         ss.append(states)
+        if model_params["valley"]:
+            energies_prime, states_prime = gbs.find_energies(-k,
+                params = model_params, N_bands = 2, 
+                lattice = lattice,
+                neighbor_table = neighbor_table,return_states = True )
+            #allways remember coefficient at G at this valley is u_-G
+            ss_prime.append(np.conjugate(states_prime))
+            es[-1].extend(energies_prime)
+            c2t_evals[-1].extend(all_c2t_evals(ss_prime[-1]))
+        #print("SP ENERGIES at valley", energies)
     for G in G_coeffs:
         s_matrices.append(shift_matrix(-G,lattice)) #TODO: Check sign of G
-        s_matrices_prime.append(shift_matrix(G,lattice)) #K' fudge
+        if model_params["valley"]:
+            s_matrices_prime.append(shift_matrix(G,lattice)) #K' fudge
     for k in range(len(k_points)):
-        print(k_points[k])
+        #print(k_points[k])
         idx_rotated = bz["c3_indices"][k]
         idx_of_G = bz["c3_indices_of_Gs"][k]
-        print("IDX OF G", idx_of_G)
+        #print("IDX OF G", idx_of_G)
         c3_evals.append([c3_eval(ss[k][0],np.dot(s_matrices[idx_of_G],  ss[idx_rotated][0])),
                 c3_eval(ss[k][1],np.dot(s_matrices[idx_of_G], ss[idx_rotated][1]))])
+        if model_params["valley"]:
+            c3_evals[-1].append(c3_eval(ss_prime[k][0],np.dot(s_matrices_prime[idx_of_G],  ss_prime[idx_rotated][0]),True))
+            c3_evals[-1].append(c3_eval(ss_prime[k][1],np.dot(s_matrices_prime[idx_of_G],  ss_prime[idx_rotated][1]),True))
     
     overlaps = np.zeros((len(G_coeffs),len(k_points),
-                        len(k_points),2,2),dtype = complex)
+                        len(k_points),N_f,N_f),dtype = complex)
     for i in range(len(k_points)):
         print(i)
         for j in range(len(k_points)):
@@ -167,17 +165,27 @@ def build_overlaps(bz,model_params):
                 for m in range(2):
                     for n in range(2):
                         overlaps[g,i,j,m,n] = overlap(ss[i][m],ss[j][n],s_matrices[g])
-    for k in deg_points:
-        c2t_eigenvalues = c2t_evals
-        print("2overlaps c2t invar: ",
-            np.linalg.norm(np.diag(c2t_eigenvalues[k]) @np.conjugate(overlaps[0,k,k,:,:]) @ np.diag(np.conjugate(c2t_eigenvalues[k])) - overlaps[0,k,k,:,:]))
+                        if model_params["valley"]:
+                            overlaps[g,i,j,m+2,n+2] = overlap(ss_prime[i][m],ss_prime[j][n],s_matrices_prime[g])
+    if model_params["spin"]:
+        #double es, c2t_evals, c3_evals for second spin species
+        es = np.concatenate((es,es),axis=1)
+        c2t_evals = np.concatenate((c2t_evals,c2t_evals),axis=1)
+        c3_evals = np.concatenate((c3_evals,c3_evals),axis=1)
+        if model_params["valley"]:
+            overlaps[:,:,:,4:,4:]=overlaps[:,:,:,:4,:4]
+        else:
+            overlaps[:,:,:,2:,2:]=overlaps[:,:,:,:2,:2]
+        #print(overlaps[0,1,0,:,:])
+        #print(overlaps[0,0,0,:,:])
     return es, overlaps, c2t_evals, c3_evals
 def v_hf(bz,overlaps,model_params,P,V_c):
     G_coeffs = bz["G_coeffs"]
     G_s = bz["G_values"]
     k_points = bz["k_points"]
     V_coulomb = V_c# model_params["V_coulomb"]
-    V_hf = np.zeros((len(k_points),2,2),dtype = complex)
+    N_f = model_params["N_f"] #N_flavors
+    V_hf = np.zeros((len(k_points),N_f,N_f),dtype = complex)
 
     direct_potential = [] #at G
     for g in range(len(G_coeffs)):
@@ -191,7 +199,7 @@ def v_hf(bz,overlaps,model_params,P,V_c):
     scaling_factor =  2* sin(model_params["theta"])*\
                     4*np.pi/(3*math.sqrt(3)*0.246)
     for k in range(len(k_points)):
-        temp = np.zeros((2,2),dtype = complex)
+        temp = np.zeros((N_f,N_f),dtype = complex)
         for g in range(len(G_coeffs)):
             temp = temp + \
                     direct_potential[g]*V_coulomb(G_s[g])*\
@@ -273,8 +281,17 @@ class hf_solver(object):
             return self.load(model_params)
         self.params = model_params
         self.bz = tbglib.build_bz(self.params["size_bz"],self.params["shifted_bz"])
-        a = np.array([1,0])
+        N_dof = 2
+        if model_params["spin"]:
+            N_dof = 2*N_dof
+        if model_params["valley"]:
+            N_dof = 2*N_dof
+        self.params["N_f"] = N_dof
+        print("N_flavors", N_dof)
+        a = np.zeros((N_dof))
+        a[0] = 1
         P_k=np.diag(a)
+        print(P_k)
         self.N_k = len(self.bz["k_points"])
         self.P_0 = [P_k.copy() for k in range(self.N_k)]#default P_0
         self.P = [P_k.copy() for k in range(self.N_k)]#default P_0
@@ -301,6 +318,12 @@ class hf_solver(object):
         self.bz = bz 
         f_in.close()
         self.params = model_params
+        N_dof = 2
+        if model_params["spin"]:
+            N_dof = 2*N_dof
+        if model_params["valley"]:
+            N_dof = 2*N_dof
+        self.params["N_f"] = N_dof
         self.overlaps = hf_solution["overlaps"]
         self.sp_energies = hf_solution["sp_energies"]
         self.hf_eigenvalues = hf_solution["hf_eigenvalues"]
@@ -432,12 +455,14 @@ if __name__ == "__main__":
                     4*np.pi/(3*math.sqrt(3)*0.246) , #this will actually be computed from theta, 0.246nm = lattice const. of graphene
                     "single_gate_screening": False, #single or dual gate screening?
                     "q_lattice_radius": 10,
-                    "size_bz": 3,
+                    "size_bz": 12,
                     "shifted_bz": True,
-                    "description": "v=-3, huge bz ",
+                    "description": "v=-3, normal bz ",
                     "V_coulomb" : V_coulomb,
                     "filling": -3,
-                    "hf_iters": 2
+                    "hf_iters": 30,
+                    "spin": False,
+                    "valley": False
                     }
 
     solver = hf_solver(model_params,None)
@@ -447,6 +472,8 @@ if __name__ == "__main__":
 
     for m in range(solver.params["hf_iters"]):
         solver.iterate_hf(True,True,False,False)
+    solver.save("data/hf_{}.hdf5".format(id))
+    adfds
     for k in range(solver.N_k-1):
         print("\n")
         print("one",solver.hf_eigenvalues[k])
@@ -465,8 +492,6 @@ if __name__ == "__main__":
         print("g : of second is:", solver.bz["c3_indices_of_Gs"][k+1])
 
 
-    solver.save("data/hf_{}.hdf5".format(id))
-    adfds
     
     print("SHOWING DECAY OF OVERLAPS")
     for g in range(len(solver.bz["G_values"])):

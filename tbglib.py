@@ -180,7 +180,7 @@ def build_bz(N=10, shifted = False):
                 bz["G_neg_indices"].append(len(bz["G_values"])-2)# [0,4,5,6,1,2,3,8,7] 
 
 
-    # only closest in recip space, need to be symmetric for K' fudge to work
+    # only closest in recip space, need G_values to be inversion symmetric for K' fudge to work
     bz["G_coeffs"] =[coeffs(k,as_int=True) for k in bz["G_values"]]
     bz["k_points"] = []
     bz["trajectory"] = [] #
