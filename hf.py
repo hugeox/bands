@@ -84,7 +84,7 @@ def C2T_eigenvalue(state):
     return eigvalue
 def c3_eval(state, rotated_state):
     a = 0
-    rot = cos(tbglib.theta)*tbglib.s0 - (0+1j)*sin(tbglib.theta)*tbglib.sz
+    #rot = cos(tbglib.theta)*tbglib.s0 - (0+1j)*sin(tbglib.theta)*tbglib.sz
     new_state = [0,0]
     new_state[1] = np.exp((0+1j)*2*tbglib.theta)*state[1]
     new_state[0] = np.exp((0+1j)*1*tbglib.theta)*state[0]
@@ -149,14 +149,14 @@ def build_overlaps(bz,model_params):
         ss.append(states)
     for G in G_coeffs:
         s_matrices.append(shift_matrix(-G,lattice)) #TODO: Check sign of G
-        s_matrices_prime.append(shift_matrix(-G,lattice)) #K' fudge
+        s_matrices_prime.append(shift_matrix(G,lattice)) #K' fudge
     for k in range(len(k_points)):
-        #print(k_points[k])
+        print(k_points[k])
         idx_rotated = bz["c3_indices"][k]
         idx_of_G = bz["c3_indices_of_Gs"][k]
-        #print("IDX OF G", idx_of_G)
-        c3_evals.append([c3_eval(ss[k][0],np.dot(s_matrices_prime[idx_of_G],  ss[idx_rotated][0])),
-                c3_eval(ss[k][1],np.dot(s_matrices_prime[idx_of_G], ss[idx_rotated][1]))])
+        print("IDX OF G", idx_of_G)
+        c3_evals.append([c3_eval(ss[k][0],np.dot(s_matrices[idx_of_G],  ss[idx_rotated][0])),
+                c3_eval(ss[k][1],np.dot(s_matrices[idx_of_G], ss[idx_rotated][1]))])
     
     overlaps = np.zeros((len(G_coeffs),len(k_points),
                         len(k_points),2,2),dtype = complex)
@@ -201,8 +201,8 @@ def v_hf(bz,overlaps,model_params,P,V_c):
                     V_coulomb(G_s[g]+k_points[l]-k_points[k])*\
                     overlaps[g,k,l,:,:]@\
                             np.matrix.transpose(P[l])@\
-                            np.matrix.transpose(np.matrix.conjugate(
-                           overlaps[g,k,l,:,:]))
+                            tbglib.dagger(
+                           overlaps[g,k,l,:,:])
 
 
 
@@ -432,7 +432,7 @@ if __name__ == "__main__":
                     4*np.pi/(3*math.sqrt(3)*0.246) , #this will actually be computed from theta, 0.246nm = lattice const. of graphene
                     "single_gate_screening": False, #single or dual gate screening?
                     "q_lattice_radius": 10,
-                    "size_bz": 30,
+                    "size_bz": 3,
                     "shifted_bz": True,
                     "description": "v=-3, huge bz ",
                     "V_coulomb" : V_coulomb,
@@ -448,21 +448,32 @@ if __name__ == "__main__":
     for m in range(solver.params["hf_iters"]):
         solver.iterate_hf(True,True,False,False)
     for k in range(solver.N_k-1):
+        print("\n")
         print("one",solver.hf_eigenvalues[k])
         print("rotated", solver.hf_eigenvalues[solver.bz["c3_indices"][k]])
+        g1 = solver.bz["G_values"][solver.bz["c3_indices_of_Gs"][k]]
+        g2 = solver.bz["G_values"][solver.bz["c3_indices_of_Gs"][k+1]]
+        idx_G = (np.linalg.norm(np.array(solver.bz["G_values"]) - (g2-g1) ,axis=1)).argmin()
         a = solver.overlaps[0,k,k+1,:,:]
-        b =  solver.overlaps[0,solver.bz["c3_indices"][k],\
+        b =  solver.overlaps[idx_G,solver.bz["c3_indices"][k],\
                 solver.bz["c3_indices"][k+1],:,:]
         c = np.linalg.norm(np.diag(solver.c3_eigenvalues[k]) @ \
             np.array( a)@ \
             np.diag(np.conjugate(solver.c3_eigenvalues[k+1])) -b )
         print("overlap c3 invar:", c)
-        print("g :", solver.bz["c3_indices_of_Gs"][k])
-        print("g :", solver.bz["c3_indices_of_Gs"][k+1])
-    solver.check_v_c2t_invariance()
+        print("g : of first is", solver.bz["c3_indices_of_Gs"][k])
+        print("g : of second is:", solver.bz["c3_indices_of_Gs"][k+1])
+
 
     solver.save("data/hf_{}.hdf5".format(id))
+    adfds
     
+    print("SHOWING DECAY OF OVERLAPS")
+    for g in range(len(solver.bz["G_values"])):
+        print("\n")
+        print("Norm of G",np.linalg.norm(solver.bz["G_values"][g]))
+        print("Overlap of k with k at G:",solver.overlaps[g,0,0,0,0])
+    solver.check_v_c2t_invariance()
 
     plt.xticks(brillouin_zone["ticks_coords"],brillouin_zone["ticks_vals"])
     plt.legend()

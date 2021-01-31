@@ -152,31 +152,33 @@ def eval(k_eval, data, k_points):
     return res
 
 def build_bz(N=10, shifted = False):
-    """shifted has c3 symmetry, but  """
+    """shifted has c3 symmetry, G's also need to respect c3  """
     if shifted and N%3!=0:
         print("Warning, one of the points lies on q0 or -q0")
+        print("It is best to avoid those since then one avoids degeneracies")
     bz ={}
     
     bz["trajectory"]=[]
     bz["ticks_vals"]=["-Ktop = Gamma"]
     bz["ticks_coords"]=[0]
-    bz["G_values"] =[np.array([0,0]),g1,g2,-g1-g2,-g1,-g2,g1+g2] 
+    bz["G_values"] = [np.array([0,0]),g1,g2,-g1-g2,-g1,-g2,g1+g2] 
     bz["G_neg_indices"] =[0,4,5,6,1,2,3] 
-    nbz = 1 #set to 2 for better c3 invariance of hartree
-    for m in range(-nbz,nbz+1):
-        for n in range(nbz+1):
-            if m>-1 and n==0:
-                continue
-            q = m*g1+n*g2
-            #bz["G_values"].append(q)
-            #bz["G_values"].append(-q)
-            #bz["G_neg_indices"].append(len(bz["G_values"])-1)# [0,4,5,6,1,2,3,8,7] 
-            #bz["G_neg_indices"].append(len(bz["G_values"])-2)# [0,4,5,6,1,2,3,8,7] 
-    #bz["G_values"]=[np.array([0,0]),g1,g2,-g1-g2,-g1,-g2,g1+g2] 
-    #bz["G_neg_indices"] =[0,4,5,6,1,2,3] 
+    if False:
+        nbz = 3 
+        bz["G_values"] =[np.array([0,0])] 
+        bz["G_neg_indices"] =[0] 
+        for m in range(-nbz,nbz+1):
+            for n in range(nbz+1):
+                if m>-1 and n==0:
+                    continue
+                q = m*g1+n*g2
+                if np.linalg.norm(q)>nbz*math.sqrt(3):
+                    continue
+                bz["G_values"].append(q)
+                bz["G_values"].append(-q)
+                bz["G_neg_indices"].append(len(bz["G_values"])-1)# [0,4,5,6,1,2,3,8,7] 
+                bz["G_neg_indices"].append(len(bz["G_values"])-2)# [0,4,5,6,1,2,3,8,7] 
 
-    #print(bz["G_values"])
-    #print(bz["G_neg_indices"])
 
     # only closest in recip space, need to be symmetric for K' fudge to work
     bz["G_coeffs"] =[coeffs(k,as_int=True) for k in bz["G_values"]]
@@ -207,6 +209,8 @@ def build_bz(N=10, shifted = False):
         idx_G = (np.linalg.norm(np.array(bz["G_values"]) - G ,axis=1)).argmin()
         if idx_G!=0:
             print("WHAAAT",idx_G,k_rot)
+            #print("G is:" , G, "k_rot is:", k_rot, "G+k_rot", G+k_rot)
+
         idx = (np.linalg.norm(np.array(bz["k_points"]) - k_rot ,axis=1)).argmin()
         if np.linalg.norm(bz["k_points"][idx]-k_rot)>1e-7:
             print("Warning, k rot",k_rot, "thought closest is",bz["k_points"][idx])
@@ -264,20 +268,22 @@ if __name__ =="__main__":
     print(coeffs(q1,True),coords([0,1]))
     print(coeffs([1.732,0]))
     #print(build_bz())
-    m = np.array(build_bz(7,True)["k_points"])
+    m = np.array(build_bz(3,True)["k_points"])
     print(m.shape)
+
+    plt.scatter(m[:,0],m[:,1])
+    #plt.scatter(m[:,0],-m[:,1]-q1[1],marker = "x")
     bz = build_bz(3,True)
     print(g1,g2,-g1-g2)
     print(bz["k_points"])
     print(bz["c3_indices"])
-
-    plt.scatter(m[:,0],m[:,1])
-    #plt.scatter(m[:,0],-m[:,1]-q1[1],marker = "x")
     
-    for g in g_s:
+    print("Lenght", len(bz["G_values"][1:]))
+    for g in bz["G_values"][1:]:
         plt.scatter((m+g)[:,0],(m+g)[:,1],marker="x")
     plt.grid()
     plt.show()
+
     ks = np.zeros((20,20))
     for i in range(0,20):
         for j in range(0,20):
