@@ -9,7 +9,7 @@ import h5py
 import hf
 
 def create_state():
-    states = 1/2*(tbglib.s0 + tbglib.sz)
+    states = 1/2*(tbglib.s0 + tbglib.sy)
     m = np.zeros(2,dtype = complex)
     m[:1]=1
     P_new = np.conjugate(states) @\
@@ -19,23 +19,25 @@ if __name__ == "__main__":
                 
     """ LOADING """
 
-    id = 0
+    id = 3
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
-    solver.params["epsilon"] = 1/0.06 * 10
-    solver.params["description"] = "HF, impose c2t"
+    solver.params["epsilon"] = 1/0.06 
+    solver.params["description"] = "HF,  no impose ,  c3 breaking"
     P_1=[]
     a = np.array([1+0j,0,])
     print(solver.eval_sp(tbglib.q1))
 
     for k in range(solver.N_k):
         P_k = create_state()
+        if k>solver.N_k/2 and True:
+            P_k = 1/2*(tbglib.s0 - tbglib.sz)
         #P_k=np.diag(a)
         P_1.append(P_k.copy())
     solver.reset_P(P_1)
 
-    for m in range(20):
-        solver.iterate_hf(True,True,True ,False)
-        if m%10==0:
+    for m in range(400):
+        dist =  solver.iterate_hf(True,True,False ,False)
+        if m==0 or m ==5 or m ==10 or m == 100 or m == 300:
             for i in range(2):
                 plt.plot([solver.eval(k)[i] for k in solver.bz["trajectory_points"]],
                         label ="after" +str(m)+" hf iter"+ str(i))
@@ -47,8 +49,8 @@ if __name__ == "__main__":
     plt.grid()
     plt.legend()
     plt.show()
-    id = 1
-    #solver.save("data/hf_{}.hdf5".format(id))
+    id = 400+id  
+    solver.save("data/hf_{}.hdf5".format(id))
 
 
     """ PLOTTING """
@@ -65,4 +67,4 @@ if __name__ == "__main__":
     plt.xticks(bz["ticks_coords"],bz["ticks_vals"])
     plt.legend()
     plt.show()
-
+0+id+idd

@@ -148,7 +148,7 @@ def build_overlaps(bz,model_params):
         c2t_evals.append(all_c2t_evals(states))
         ss.append(states)
     for G in G_coeffs:
-        s_matrices.append(shift_matrix(G,lattice))
+        s_matrices.append(shift_matrix(-G,lattice)) #TODO: Check sign of G
         s_matrices_prime.append(shift_matrix(-G,lattice)) #K' fudge
     for k in range(len(k_points)):
         #print(k_points[k])
@@ -288,14 +288,15 @@ class hf_solver(object):
         model_params = {}
         f_in = h5py.File(filepath, 'r')
         for k in f_in.keys():
-            print(k)
+            #print(k)
             hf_solution[k] = f_in[k][...]
         
         SIZE_BZ = f_in.attrs["size_bz"]
+        print("Size of brillouin-zone: ", SIZE_BZ)
         for key in f_in.attrs.keys():
             model_params[key] = f_in.attrs[key] 
             if key == "description":
-                print(f_in.attrs[key])
+                print("Description:", f_in.attrs[key])
         bz = tbglib.build_bz(SIZE_BZ,model_params["shifted_bz"])
         self.bz = bz 
         f_in.close()
@@ -340,12 +341,14 @@ class hf_solver(object):
         P, energies,states = iterate_hf(self.bz,self.sp_energies,
                 self.overlaps,
                 self.params, self.P,self.V_coulomb,False)
-        print("HF distance", 
-                np.linalg.norm(np.array(P).ravel()-np.array(self.P).ravel()))
+        dist = np.linalg.norm(np.array(P).ravel()-np.array(self.P).ravel())
+        print("HF distance",dist)
         if impose_c2t:
+            #print(P[0])
             for k in range(self.N_k):
                 P[k] = 0.5*np.diag(np.conjugate(self.c2t_eigenvalues[k])) \
                         @ np.transpose(P[k]) @ np.diag(self.c2t_eigenvalues[k])+ 0.5 * P[k]
+            #print(P[0]@P[0],P[0])
         if check_c2t:
             s = reduce(lambda x, k: x +
                     np.linalg.norm(np.diag(self.c2t_eigenvalues[k])\
@@ -366,7 +369,7 @@ class hf_solver(object):
         self.P = P
         self.hf_eigenvalues = energies
         self.hf_eigenstates = states
-        return P, energies,states
+        return dist
     def eval(self,k):
         return tbglib.eval(k,self.hf_eigenvalues,self.bz["k_points"])
     def eval_sp(self,k):
@@ -429,17 +432,17 @@ if __name__ == "__main__":
                     4*np.pi/(3*math.sqrt(3)*0.246) , #this will actually be computed from theta, 0.246nm = lattice const. of graphene
                     "single_gate_screening": False, #single or dual gate screening?
                     "q_lattice_radius": 10,
-                    "size_bz": 18,
+                    "size_bz": 30,
                     "shifted_bz": True,
-                    "description": "v=-3, massive bz c3 symmetric, c2t symmetric, avoiding degeneracy points",
+                    "description": "v=-3, huge bz ",
                     "V_coulomb" : V_coulomb,
                     "filling": -3,
-                    "hf_iters":200
+                    "hf_iters": 2
                     }
 
     solver = hf_solver(model_params,None)
 
-    id = 0
+    id = 5
     print(id)
 
     for m in range(solver.params["hf_iters"]):

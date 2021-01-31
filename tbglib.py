@@ -152,6 +152,9 @@ def eval(k_eval, data, k_points):
     return res
 
 def build_bz(N=10, shifted = False):
+    """shifted has c3 symmetry, but  """
+    if shifted and N%3!=0:
+        print("Warning, one of the points lies on q0 or -q0")
     bz ={}
     
     bz["trajectory"]=[]
@@ -202,6 +205,8 @@ def build_bz(N=10, shifted = False):
         #workis
         k_rot, G = decompose(np.dot(c3_rot, bz["k_points"][k])) #k_rot + G= c3 @ k
         idx_G = (np.linalg.norm(np.array(bz["G_values"]) - G ,axis=1)).argmin()
+        if idx_G!=0:
+            print("WHAAAT",idx_G,k_rot)
         idx = (np.linalg.norm(np.array(bz["k_points"]) - k_rot ,axis=1)).argmin()
         if np.linalg.norm(bz["k_points"][idx]-k_rot)>1e-7:
             print("Warning, k rot",k_rot, "thought closest is",bz["k_points"][idx])
@@ -267,10 +272,10 @@ if __name__ =="__main__":
     print(bz["c3_indices"])
 
     plt.scatter(m[:,0],m[:,1])
-    plt.scatter(m[:,0],-m[:,1]-q1[1],marker = "x")
+    #plt.scatter(m[:,0],-m[:,1]-q1[1],marker = "x")
     
     for g in g_s:
-        plt.scatter((m+g)[:,0],(m+g)[:,1])
+        plt.scatter((m+g)[:,0],(m+g)[:,1],marker="x")
     plt.grid()
     plt.show()
     ks = np.zeros((20,20))

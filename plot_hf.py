@@ -9,50 +9,56 @@ import tbglib
 import h5py
 import hf
 import misc
+from tbglib import g1,g2
 
 if __name__ == "__main__":
                 
     """ LOADING """
 
-    id = 17
+    id = 403
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
-    for i in range(2):
-        plt.plot([solver.eval_sp(k)[i] for k in solver.bz["trajectory_points"]], label ="single particle")
-    plt.xticks(solver.bz["ticks_coords"],solver.bz["ticks_vals"])
-    plt.grid()
-    plt.legend()
-    plt.show()
+    #solver.check_v_c2t_invariance()
  
+    G_vals = [np.array([0,0]),g1,g2,g1+g2] 
+    data_new = np.concatenate(tuple([solver.hf_eigenvalues for m in range(len(G_vals))]))
+    k_points_new = np.concatenate(tuple([np.array(solver.bz["k_points"])+G_vals[m] for m in range(len(G_vals))]))
     fig = plt.figure()
     ax = fig.gca(projection='3d')
-    X = np.arange(-1.5000023, 2, 0.15)
-    Y = np.arange(-1.500000054, 2, 0.15)
+    X = [k[0] for k in k_points_new]
+    Y = [k[1] for k in k_points_new]
+    Z = [data_new[k][0] for k in range(solver.N_k*len(G_vals))]
+    surf = ax.plot_trisurf(X,
+            Y,Z)
+    Z = [data_new[k][1] for k in range(solver.N_k*len(G_vals))]
+    surf = ax.plot_trisurf(X,
+            Y,Z)
+    plt.show()
+
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    X = np.arange(-1.000023, 1, 0.05)
+    Y = np.arange(-1.500000054, 1.5, 0.05)
     Z = np.array([[solver.eval(np.array([x,y]))[0] for x in X] for y in Y])
     X, Y = np.meshgrid(X, Y)
     surf = ax.plot_surface(X,
             Y,Z)
-    X = np.arange(-1.5000023, 2, 0.15)
-    Y = np.arange(-1.50000054, 2, 0.15)
+    X = np.arange(-1.000023, 1, 0.05)
+    Y = np.arange(-1.500000054, 1.5, 0.05)
     Z = np.array([[solver.eval(np.array([x,y]))[1] for x in X] for y in Y])
     X, Y = np.meshgrid(X, Y)
     surf = ax.plot_surface(X,
             Y,Z)
     plt.show()
  
+    for i in range(2):
+        plt.plot([solver.eval_sp(k)[i] for k in solver.bz["trajectory_points"]], label ="single particle")
+    plt.xticks(solver.bz["ticks_coords"],solver.bz["ticks_vals"])
+    plt.grid()
+    plt.legend()
+    plt.show()
     
     """ PLOTTING """
 
-    for i in range(2):
-        plt.plot([tbglib.eval(k,energies,bz["k_points"])[i] for k in bz["trajectory_points"]],label = "after one iter")
-    for i in range(2):
-        plt.plot([tbglib.eval(k,energies_1,bz["k_points"])[i] for k in bz["trajectory_points"]],label = "after two iters")
-    #for i in range(2):
-    #   plt.plot([tbglib.eval(k,hf_eigenvalues,bz["k_points"])[i] for k in bz["trajectory_points"]],label = "hf_eigenvalues")
-    for i in range(2):
-        plt.plot([10*tbglib.eval(k,sp_energies,bz["k_points"])[i] for k in bz["trajectory_points"]],label = "10 * sp_energies")
-    plt.xticks(bz["ticks_coords"],bz["ticks_vals"])
-    plt.legend()
-    plt.show()
 
     for i in range(2):
         print(hf_eigenstates[0,:,i])
