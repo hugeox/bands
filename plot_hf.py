@@ -14,6 +14,13 @@ from tbglib import g1,g2
 if __name__ == "__main__":
                 
     """ LOADING """
+    plt.plot([1,2,3,4],label = "a")
+    plt.plot([3,2,3,4],label = "b")
+    plt.grid()
+    plt.legend()
+    plt.xticks([1,2],["k","l"])
+    plt.show()
+    
 
     id = 403
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))

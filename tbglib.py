@@ -268,7 +268,7 @@ if __name__ =="__main__":
     print(coeffs(q1,True),coords([0,1]))
     print(coeffs([1.732,0]))
     #print(build_bz())
-    m = np.array(build_bz(3,True)["k_points"])
+    m = np.array(build_bz(20,True)["k_points"])
     print(m.shape)
 
     plt.scatter(m[:,0],m[:,1])
@@ -279,7 +279,7 @@ if __name__ =="__main__":
     print(bz["c3_indices"])
     
     print("Lenght", len(bz["G_values"][1:]))
-    for g in bz["G_values"][1:]:
+    for g in bz["G_values"][1:3]:
         plt.scatter((m+g)[:,0],(m+g)[:,1],marker="x")
     plt.grid()
     plt.show()

@@ -8,40 +8,42 @@ import tbglib
 import h5py
 import hf
 
-def create_state():
+def create_state(N_f):
+    P = np.zeros((N_f,N_f),dtype = complex)
     states = 1/2*(tbglib.s0 + tbglib.sy)
-    m = np.zeros(2,dtype = complex)
-    m[:1]=1
-    P_new = np.conjugate(states) @\
-                 np.diag(m) @  np.transpose(states)
-    return states
+    P[:2,:2]=states
+    return P
 if __name__ == "__main__":
                 
     """ LOADING """
 
-    id = 3
+    id = 5
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
     solver.params["epsilon"] = 1/0.06 
-    solver.params["description"] = "HF,  no impose ,  c3 breaking"
+    solver.params["description"] = "HF,  break c2t "
     P_1=[]
-    a = np.array([1+0j,0,])
-    print(solver.eval_sp(tbglib.q1))
+    
 
     for k in range(solver.N_k):
-        P_k = create_state()
-        if k>solver.N_k/2 and True:
-            P_k = 1/2*(tbglib.s0 - tbglib.sz)
+        P_k = create_state(solver.params["N_f"])
+        if k>solver.N_k/2 and False:
+            P_k[:2,:2] = 1/2*(tbglib.s0 - tbglib.sz)
         #P_k=np.diag(a)
         P_1.append(P_k.copy())
     solver.reset_P(P_1)
+    print(P_1[-1])
 
-    for m in range(400):
+    solver.iterate_hf(True,True,False ,True)
+    for m in range(80):
         dist =  solver.iterate_hf(True,True,False ,False)
-        if m==0 or m ==5 or m ==10 or m == 100 or m == 300:
+        if m%20==0:
             for i in range(2):
-                plt.plot([solver.eval(k)[i] for k in solver.bz["trajectory_points"]],
+                arr = [solver.eval(k)[i] for k in solver.bz["trajectory_points"]]
+                plt.plot(arr,
                         label ="after" +str(m)+" hf iter"+ str(i))
 
+    id = 200+id  
+    solver.save("data/hf_{}.hdf5".format(id))
     for i in range(2):
         plt.plot([solver.eval_sp(k)[i] for k in solver.bz["trajectory_points"]],
                 label ="sp energies")
@@ -49,8 +51,6 @@ if __name__ == "__main__":
     plt.grid()
     plt.legend()
     plt.show()
-    id = 400+id  
-    solver.save("data/hf_{}.hdf5".format(id))
 
 
     """ PLOTTING """

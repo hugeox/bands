@@ -153,6 +153,8 @@ def build_overlaps(bz,model_params):
         c3_evals.append([c3_eval(ss[k][0],np.dot(s_matrices[idx_of_G],  ss[idx_rotated][0])),
                 c3_eval(ss[k][1],np.dot(s_matrices[idx_of_G], ss[idx_rotated][1]))])
         if model_params["valley"]:
+            #print("Second valley")
+            #print(es[k])
             c3_evals[-1].append(c3_eval(ss_prime[k][0],np.dot(s_matrices_prime[idx_of_G],  ss_prime[idx_rotated][0]),True))
             c3_evals[-1].append(c3_eval(ss_prime[k][1],np.dot(s_matrices_prime[idx_of_G],  ss_prime[idx_rotated][1]),True))
     
@@ -319,10 +321,13 @@ class hf_solver(object):
         f_in.close()
         self.params = model_params
         N_dof = 2
-        if model_params["spin"]:
-            N_dof = 2*N_dof
-        if model_params["valley"]:
-            N_dof = 2*N_dof
+        try:
+            if model_params["spin"]:
+                N_dof = 2*N_dof
+            if model_params["valley"]:
+                N_dof = 2*N_dof
+        except:
+            2+3
         self.params["N_f"] = N_dof
         self.overlaps = hf_solution["overlaps"]
         self.sp_energies = hf_solution["sp_energies"]
@@ -454,20 +459,20 @@ if __name__ == "__main__":
                     "scaling_factor": 2* sin(1.09*np.pi/180)*\
                     4*np.pi/(3*math.sqrt(3)*0.246) , #this will actually be computed from theta, 0.246nm = lattice const. of graphene
                     "single_gate_screening": False, #single or dual gate screening?
-                    "q_lattice_radius": 10,
-                    "size_bz": 12,
+                    "q_lattice_radius": 12,
+                    "size_bz": 30,
                     "shifted_bz": True,
-                    "description": "v=-3, normal bz ",
+                    "description": "v=-3, huge bz, one flavor ",
                     "V_coulomb" : V_coulomb,
                     "filling": -3,
-                    "hf_iters": 30,
+                    "hf_iters": 100,
                     "spin": False,
                     "valley": False
                     }
 
     solver = hf_solver(model_params,None)
 
-    id = 5
+    id = 0
     print(id)
 
     for m in range(solver.params["hf_iters"]):

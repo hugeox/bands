@@ -35,13 +35,15 @@ def index_kplusq(bz,index_k,q):
 if __name__ == "__main__":
     #execution
                 
-    id = 15
+    id = 205
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
     solver.check_v_c2t_invariance()
     P = solver.P
     bz = solver.bz
     hf_eigenvalues = solver.hf_eigenvalues
     hf_eigenstates = solver.hf_eigenstates
+    overlaps = solver.overlaps
+    model_params = solver.params
 
     q = np.array([0,0])
     print("q is equal to:",q)
@@ -79,7 +81,7 @@ if __name__ == "__main__":
                                 model_params["scaling_factor"]**2/(N*1.5*math.sqrt(3))
     
 
-    np.save("h_mode.npy",H_mode)
+    np.save("data/h_mode_{}.npy".format(id),H_mode)
     energies, states = np.linalg.eigh(H_mode)
     print("energies:", energies[:5])
     for i in range(8):
