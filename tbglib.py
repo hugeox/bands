@@ -47,7 +47,7 @@ def in_bz(k):
     if 2*coeffs_int[1]>i or 2*coeffs_int[1]<-i+1:
         return False
     return True
-def in_bz(k):
+def in_bz(k,size_bz=None):
     if np.linalg.norm(k-q1)<1e-7:
         return True
     if np.linalg.norm(k+q1)<1e-7:
@@ -58,10 +58,13 @@ def in_bz(k):
         d = np.dot(k,g)
         if d<0:
             continue
-        for i in range(1,50):
-            #print(i)
-            if np.isclose(i*d,np.rint(i*d)):
-                break
+        if size_bz==None:
+            for i in range(1,50):
+                #print(i)
+                if np.isclose(i*d,np.rint(i*d)):
+                    break
+        else:
+            i = size_bz
         coeffs_int = np.rint(i*d).astype(int)
         #print(coeffs_int,i)
         if 2*coeffs_int > 3*i:
@@ -71,10 +74,13 @@ def in_bz(k):
         #print(d)
         if d<0:
             continue
-        for i in range(1,30):
-            #print(i)
-            if np.isclose(i*d,np.rint(i*d)):
-                break
+        if size_bz==None:
+            for i in range(1,50):
+                #print(i)
+                if np.isclose(i*d,np.rint(i*d)):
+                    break
+        else:
+            i = size_bz
         coeffs_int = np.rint(i*d).astype(int)
         if 2*coeffs_int >= 3*i:
             return False
@@ -93,13 +99,13 @@ def in_bz_old(k):
     if np.linalg.norm(k)>=np.linalg.norm(k+g1+g2):
         return False
     return True
-def decompose(k):
+def decompose(k,N=None):
     """ k = q + G, q in BZ, G in reciprocal lattice
         returns q,G """
     for i in range(-4,4):
         for j in range(-4,4):
             G = i*g1+j*g2
-            if in_bz(k-G):
+            if in_bz(k-G,N):
                 return k-G,G
     print("Not in immediate neighborhood of bz:", k)
 
@@ -150,9 +156,9 @@ def eval(k_eval, data, k_points):
         k_points_new = np.concatenate(tuple([np.array(k_points)+G_vals[m] for m in range(len(G_vals))]))
         return eval(k_eval, data_new,k_points_new)
     return res
-
 def build_bz(N=10, shifted = False):
     """shifted has c3 symmetry, G's also need to respect c3  """
+    print("Building bz")
     if shifted and N%3!=0:
         print("Warning, one of the points lies on q0 or -q0")
         print("It is best to avoid those since then one avoids degeneracies")
@@ -188,24 +194,25 @@ def build_bz(N=10, shifted = False):
     bz["c3_indices"] = []
     bz["c3_indices_of_Gs"] = []
 
+    print("A")
     for m in range(-6*N-4,6*N+4):
         for n in range(-6*N-4,6*N+4):
             if shifted:
                 q = m/N*g1+n/N*(g1+g2)+ q1/N#g1/501/N+g2/501/N
             else:
                 q = m/N*g1+n/N*(g1+g2)# + q1/N#g1/501/N+g2/501/N
-            if in_bz(q):
+            if in_bz(q,N):
                 if m==n==0:
                     bz["index_0"]=len(bz["k_points"])
                 bz["k_points"].append(q)
-    #print(bz["k_points"])
 
     idx = (np.linalg.norm(np.array(bz["k_points"]) - np.array([0,0]) ,axis=1)).argmin()
     bz["k_points_diff"] = np.array(bz["k_points"]) - bz["k_points"][idx]
+    print("B")
 
     for k in range(len(bz["k_points"])):
         #workis
-        k_rot, G = decompose(np.dot(c3_rot, bz["k_points"][k])) #k_rot + G= c3 @ k
+        k_rot, G = decompose(np.dot(c3_rot, bz["k_points"][k]),N) #k_rot + G= c3 @ k
         idx_G = (np.linalg.norm(np.array(bz["G_values"]) - G ,axis=1)).argmin()
         if idx_G!=0:
             print("WHAAAT",idx_G,k_rot)
@@ -223,8 +230,8 @@ def build_bz(N=10, shifted = False):
     N_t = 40
     for i in range(N_t+1):
         point = -3*q1 + 2*q1*(i/N_t)# + np.array([0.000001237,0.000001143])
-        idx = closest_in_bz(bz["k_points"],point)
-        bz["trajectory"].append(idx)
+        #idx = closest_in_bz(bz["k_points"],point)
+        #bz["trajectory"].append(idx)
         bz["trajectory_points"].append(point)
     bz["ticks_vals"].append("Gamma")
     bz["ticks_coords"].append(int(i/2))
@@ -233,8 +240,8 @@ def build_bz(N=10, shifted = False):
 
     for i in range(1,N_t+1):
         point = -q1 +  2* q1*(i/N_t) #+ np.array([0.000001237,0.000001143])
-        idx = closest_in_bz(bz["k_points"],point)
-        bz["trajectory"].append(idx)
+        #idx = closest_in_bz(bz["k_points"],point)
+        #bz["trajectory"].append(idx)
         bz["trajectory_points"].append(point)
     bz["ticks_vals"].append("-Ktop=Gamma")
     bz["ticks_coords"].append(len(bz["trajectory"])-1)
@@ -242,22 +249,22 @@ def build_bz(N=10, shifted = False):
 
     for i in range(1,N_t+1):
         point = q1 -(2*q1+q2)*i/N_t #+ np.array([0.00000032134,0.000001143])
-        idx = closest_in_bz(bz["k_points"],point)
-        bz["trajectory"].append(idx)
+        #idx = closest_in_bz(bz["k_points"],point)
+        #bz["trajectory"].append(idx)
         bz["trajectory_points"].append(point)
     bz["ticks_vals"].append("Gamma")
     bz["ticks_coords"].append(len(bz["trajectory"])-1)
     for i in range(1,N_t+1):
         point = q1 -(2*q1+q2)*i/N_t #+ np.array([0.0000012137,0.000001143])
-        idx = closest_in_bz(bz["k_points"],point)
-        bz["trajectory"].append(idx)
+        #idx = closest_in_bz(bz["k_points"],point)
+        #bz["trajectory"].append(idx)
         bz["trajectory_points"].append(point)
     bz["ticks_vals"].append("Gamma")
     bz["ticks_coords"].append(len(bz["trajectory"])-1)
     for i in range(1,N_t+1):
         point = -q1 -q2 +q2*i/N_t #+ np.array([0.0000012139,0.00000145])
-        idx = closest_in_bz(bz["k_points"],point)
-        bz["trajectory"].append(idx)
+        #idx = closest_in_bz(bz["k_points"],point)
+        #bz["trajectory"].append(idx)
         bz["trajectory_points"].append(point)
     bz["ticks_vals"].append("Ktop")
     bz["ticks_coords"].append(len(bz["trajectory"])-1)

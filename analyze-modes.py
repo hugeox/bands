@@ -6,26 +6,27 @@ import matplotlib.pyplot as plt
 import generate_band_structure as gbs
 import tbglib
 import h5py
+import hf
 
 
 if __name__ == "__main__":
                 
-    id = 0
-    hf_solution = hf.read_hf_from_file("data/hf_{}.hdf5".format(id))
-    for key,val in hf_solution.items():
-        print("Loading key:", key)
-        exec(key + '=val')
-    P = P_hf
-
+    id = 205
+    solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
     q = np.array([0,0])
-    #q = bz["k_points_diff"][3]
-    print("q is equal to:",q)
-    k_points = bz["k_points"]
-    filling = int(round(np.real(np.trace(P[0]))))
-    N = len(k_points)
+    filling = int(round(np.real(np.trace(solver.P[0]))))
 
-    H_mode=np.load("h_mode_{}.npy".format(id))
+    H_mode=np.load("data/h_mode_{}.npy".format(id))
     energies, states = np.linalg.eigh(H_mode)
+    print("len:" ,len(states[:,0]))
+    print("first comps" ,states[::solver.N_k,0])
+    idx = np.abs(states[:,0]).argmax()
+    print(states[idx,0], "index:", idx)
+    k = idx%solver.N_k 
+    flav = int((idx-k)/solver.N_k)
+    print("eigstate",solver.hf_eigenstates[k,:,flav+1])
+    print("norm eigstate",np.linalg.norm(solver.hf_eigenstates[k,:,flav+1]))
+    saf
     print("energies:", energies[:5])
     for i in range(8):
         print("EIGSTATES", np.real(hf_eigenstates[0,:,i]))

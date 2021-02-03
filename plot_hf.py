@@ -14,31 +14,29 @@ from tbglib import g1,g2
 if __name__ == "__main__":
                 
     """ LOADING """
-    
-
     id = 300
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
-    print(solver.overlaps[0,0,0,0,0])
-    print("Energy of HF state is:", solver.hf_energy())
-    #solver.iterate_hf(True,True)
+    #solver.iterate_hf(True,True,False,False)
     #solver.check_v_c2t_invariance()
+    centered_at = tbglib.q1-tbglib.q1 #where is the view centered, i.e. this is [0,0]
+    radius = 0.3
  
-    G_vals = [np.array([0,0]),g1,g2,g1+g2] 
+    G_vals = [np.array([0,0]),g1,g2,g1+g2,-g1,-g2,-g1-g2] 
     data_new = np.concatenate(tuple([solver.hf_eigenvalues for m in range(len(G_vals))]))
-    k_points_new = np.concatenate(tuple([np.array(solver.bz["k_points"])+G_vals[m] for m in range(len(G_vals))]))
+    k_points_new = np.concatenate(tuple([np.array(solver.bz["k_points"])+G_vals[m]-tbglib.q1-centered_at for m in range(len(G_vals))]))
+    data_new = [data_new[i] for i in range(len(k_points_new)) if np.linalg.norm(k_points_new[i])<radius]
+    k_points_new = [k_points_new[i] for i in range(len(k_points_new)) if np.linalg.norm(k_points_new[i])<radius]
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     X = [k[0] for k in k_points_new]
     Y = [k[1] for k in k_points_new]
-    Z = [data_new[k][0] for k in range(solver.N_k*len(G_vals))]
+    Z = [data_new[k][0] for k in range(len(data_new))]
     surf = ax.plot_trisurf(X,
             Y,Z)
-    Z = [data_new[k][1] for k in range(solver.N_k*len(G_vals))]
+    Z = [data_new[k][1] for k in range(len(data_new))]
     surf = ax.plot_trisurf(X,
             Y,Z)
-    plt.show()
-
-    fig = plt.figure()
+    plt.show() fig = plt.figure()
     ax = fig.gca(projection='3d')
     X = np.arange(-1.000023, 1, 0.05)
     Y = np.arange(-1.500000054, 1.5, 0.05)
