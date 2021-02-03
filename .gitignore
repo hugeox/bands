@@ -7,6 +7,9 @@
 *.hdf5
 *.npy
 
+# nohup output
+nohup.out
+
 #cached pickle files
 *.pickle
 

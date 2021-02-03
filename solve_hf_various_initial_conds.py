@@ -8,42 +8,53 @@ import tbglib
 import h5py
 import hf
 
-def create_state(N_f):
+def create_state(N_k,N_f,filling,break_c2t=False,break_c3 = False, coherence=False):
+    P_1=[]
     P = np.zeros((N_f,N_f),dtype = complex)
-    states = 1/2*(tbglib.s0 + tbglib.sy)
-    P[:2,:2]=states
-    return P
+    if  coherence == True:
+        if filling+4%2!=0:
+            print("Warning, need even filling for coherence!")
+        for i in range(int((filling+4)/2)):
+            P[4*i:4*i+4,4*i:4*i+4] = np.kron(1/2*(tbglib.s0 + tbglib.sy),tbglib.s0)
+        P1 = P
+        P2 = P
+        print(P)
+    else:
+        m = np.zeros((int(N_f/2)),dtype = complex)
+        m[:filling+4]=1
+        if break_c2t:
+            P1 =  np.kron(np.diag(m),1/2*(tbglib.s0 + tbglib.sy))
+        else:
+            P1 =  np.kron(np.diag(m),1/2*(tbglib.s0 + tbglib.sz))
+        P2 =  np.kron(np.diag(m),1/2*(tbglib.s0 - tbglib.sz))
+
+    for k in range(N_k):
+        for i in range(filling + 4):
+            P_1.append(P1.copy())     
+        if k%7==0 and break_c3:
+            P_1.append(P2.copy())
+    return P_1
 if __name__ == "__main__":
                 
     """ LOADING """
 
-    id = 5
+    id = 4
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
-    solver.params["epsilon"] = 1/0.06 
-    solver.params["description"] = "HF,  break c2t "
-    P_1=[]
-    
+    solver.params["description"] = "HF,  c3_breaking, various v "
+    P = create_state(solver.N_k,solver.params["N_f"],-3,break_c2t = False,
+                        break_c3 = True, coherence = False)
+    for mult in [240]:
+        print("\n", mult)
+        solver.params["epsilon"] = 1/0.06 * mult
+        solver.reset_P(P)
+        for m in range(40):
+            dist =  solver.iterate_hf(True,True,False ,False)
+        for i in range(2):
+            arr = [solver.eval(k)[i] for k in solver.bz["trajectory_points"]]
+            plt.plot(arr,
+                    label ="after" +str(mult)+" hf iter"+ str(i))
+        solver.save("data/hf_{}.hdf5".format(1000*(300+id)+mult))
 
-    for k in range(solver.N_k):
-        P_k = create_state(solver.params["N_f"])
-        if k>solver.N_k/2 and False:
-            P_k[:2,:2] = 1/2*(tbglib.s0 - tbglib.sz)
-        #P_k=np.diag(a)
-        P_1.append(P_k.copy())
-    solver.reset_P(P_1)
-    print(P_1[-1])
-
-    solver.iterate_hf(True,True,False ,True)
-    for m in range(80):
-        dist =  solver.iterate_hf(True,True,False ,False)
-        if m%20==0:
-            for i in range(2):
-                arr = [solver.eval(k)[i] for k in solver.bz["trajectory_points"]]
-                plt.plot(arr,
-                        label ="after" +str(m)+" hf iter"+ str(i))
-
-    id = 200+id  
-    solver.save("data/hf_{}.hdf5".format(id))
     for i in range(2):
         plt.plot([solver.eval_sp(k)[i] for k in solver.bz["trajectory_points"]],
                 label ="sp energies")
@@ -51,6 +62,8 @@ if __name__ == "__main__":
     plt.grid()
     plt.legend()
     plt.show()
+    id = 300+id  
+    solver.save("data/hf_{}.hdf5".format(id))
 
 
     """ PLOTTING """

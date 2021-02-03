@@ -35,7 +35,7 @@ def index_kplusq(bz,index_k,q):
 if __name__ == "__main__":
     #execution
                 
-    id = 205
+    id = 404
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
     solver.check_v_c2t_invariance()
     P = solver.P

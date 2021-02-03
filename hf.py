@@ -220,9 +220,9 @@ def v_hf(bz,overlaps,model_params,P,V_c):
                         #area of hexagon
     return V_hf
 
-def hf_energy_total(bz,energies, overlaps, model_params, P):
+def hf_energy_total(bz,energies, overlaps, model_params, P,V_coulomb):
     temp = 0
-    v_mf = v_hf(bz,overlaps,model_params, P)
+    v_mf = v_hf(bz,overlaps,model_params, P,V_coulomb)
     en = []
     for e in energies:
         en.append(np.diag(e))
@@ -446,6 +446,9 @@ class hf_solver(object):
         X, Y = np.meshgrid(X, Y)
         surf = ax.plot_surface(X,
                 Y,Z)
+    def hf_energy(self):
+        return hf_energy_total(self.bz,self.sp_energies, self.overlaps,
+self.params, self.P,self.V_coulomb)
 
 if __name__ == "__main__":
     #execution
@@ -465,7 +468,7 @@ if __name__ == "__main__":
                     "description": "v=-3, huge bz, one flavor ",
                     "V_coulomb" : V_coulomb,
                     "filling": -3,
-                    "hf_iters": 100,
+                    "hf_iters": 300,
                     "spin": False,
                     "valley": False
                     }
