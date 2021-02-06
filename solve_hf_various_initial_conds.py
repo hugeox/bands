@@ -27,22 +27,38 @@ def create_state(N_k,N_f,filling,break_c2t=False,break_c3 = False, coherence=Fal
         else:
             P1 =  np.kron(np.diag(m),1/2*(tbglib.s0 + tbglib.sz))
         P2 =  np.kron(np.diag(m),1/2*(tbglib.s0 - tbglib.sz))
-
     for k in range(N_k):
-        for i in range(filling + 4):
-            P_1.append(P1.copy())     
         if k%7==0 and break_c3:
             P_1.append(P2.copy())
+        else:
+            P_1.append(P1.copy())     
     return P_1
 if __name__ == "__main__":
                 
     """ LOADING """
 
-    id = 4
+    id = 5
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
     solver.params["description"] = "HF,  c3_breaking, various v "
-    P = create_state(solver.N_k,solver.params["N_f"],-3,break_c2t = False,
+    for i in range(2):
+        plt.plot([solver.eval_sp(k)[i] for k in solver.bz["trajectory_points"]],
+                label ="sp energies")
+    for i in range(2,4):
+        plt.plot([solver.eval_sp(k)[i] for k in solver.bz["trajectory_points"]],
+                label ="sp energies")
+    plt.xticks(solver.bz["ticks_coords"],solver.bz["ticks_vals"])
+    plt.grid()
+    plt.legend()
+    plt.show()
+    plt.xticks(solver.bz["ticks_coords"],solver.bz["ticks_vals"])
+    plt.grid()
+    plt.legend()
+    plt.show()
+
+    P = create_state(solver.N_k,solver.params["N_f"],0,break_c2t = False,
                         break_c3 = True, coherence = False)
+    print(len(P))
+    print(P[0])
     for mult in [240]:
         print("\n", mult)
         solver.params["epsilon"] = 1/0.06 * mult

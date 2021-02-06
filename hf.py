@@ -119,6 +119,8 @@ def build_overlaps(bz,model_params):
     s_matrices = []
     c2t_evals = []
     c3_evals = []
+    projected_szs = []
+    sz = np.kron(np.identity(len(lattice)),tbglib.sz)
     if model_params["valley"]:
         ss_prime = []
         s_matrices_prime = []
@@ -160,6 +162,7 @@ def build_overlaps(bz,model_params):
     
     overlaps = np.zeros((len(G_coeffs),len(k_points),
                         len(k_points),N_f,N_f),dtype = complex)
+    projected_szs = np.zeros((len(k_points),N_f,N_f),dtype = complex)
     for i in range(len(k_points)):
         print(i)
         for j in range(len(k_points)):
@@ -169,6 +172,18 @@ def build_overlaps(bz,model_params):
                         overlaps[g,i,j,m,n] = overlap(ss[i][m],ss[j][n],s_matrices[g])
                         if model_params["valley"]:
                             overlaps[g,i,j,m+2,n+2] = overlap(ss_prime[i][m],ss_prime[j][n],s_matrices_prime[g])
+    for i in range(len(k_points)):
+        for m in range(2):
+            for n in range(2):
+                if m==n:
+                    projected_szs[i,m,n]= np.vdot(ss[i][m],np.dot(sz,ss[i][n]))
+                    if model_params["valley"]:
+                        projected_szs[i,m+2,n+2]=np.vdot(ss_prime[i][m],np.dot(sz,ss_prime[i][n]))
+                else: # botch to normalize
+                    projected_szs[i,m,n]=np.exp(1j*np.angle( np.vdot(ss[i][m],np.dot(sz,ss[i][n]))))
+                    if model_params["valley"]:
+                        projected_szs[i,m+2,n+2]=np.exp(1j*np.angle(np.vdot(ss_prime[i][m],np.dot(sz,ss_prime[i][n]))))
+    print("Projected szs:", projected_szs[0])
     if model_params["spin"]:
         #double es, c2t_evals, c3_evals for second spin species
         es = np.concatenate((es,es),axis=1)
@@ -176,8 +191,10 @@ def build_overlaps(bz,model_params):
         c3_evals = np.concatenate((c3_evals,c3_evals),axis=1)
         if model_params["valley"]:
             overlaps[:,:,:,4:,4:]=overlaps[:,:,:,:4,:4]
+            projected_szs[:,4:,4:]=projected_szs[:,:4,:4]
         else:
             overlaps[:,:,:,2:,2:]=overlaps[:,:,:,:2,:2]
+            projected_szs[:,2:,2:]=projected_szs[:,:2,:2]
         #print(overlaps[0,1,0,:,:])
         #print(overlaps[0,0,0,:,:])
     return es, overlaps, c2t_evals, c3_evals
@@ -443,7 +460,7 @@ class hf_solver(object):
         X = np.arange(-1.5000023, 2, 0.15)
         Y = np.arange(-1.50000054, 2, 0.15)
         Z = np.array([[self.eval(np.array([x,y]))[1] for x in X] for y in Y])
-        X, Y = np.meshgrid(X, Y)
+        X, Y = np.meshgrid(X)
         surf = ax.plot_surface(X,
                 Y,Z)
     def hf_energy(self):
@@ -463,19 +480,19 @@ if __name__ == "__main__":
                     4*np.pi/(3*math.sqrt(3)*0.246) , #this will actually be computed from theta, 0.246nm = lattice const. of graphene
                     "single_gate_screening": False, #single or dual gate screening?
                     "q_lattice_radius": 12,
-                    "size_bz": 30,
+                    "size_bz": 3,
                     "shifted_bz": True,
                     "description": "v=-3, huge bz, one flavor ",
                     "V_coulomb" : V_coulomb,
                     "filling": -3,
-                    "hf_iters": 300,
+                    "hf_iters": 1,
                     "spin": False,
                     "valley": False
                     }
 
     solver = hf_solver(model_params,None)
 
-    id = 0
+    id = 19
     print(id)
 
     for m in range(solver.params["hf_iters"]):

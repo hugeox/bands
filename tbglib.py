@@ -3,6 +3,7 @@ from math import cos,sin
 import math
 import time
 import matplotlib.pyplot as plt
+from functools import reduce
 
 s0 = np.array([[1, 0],[ 0, 1]])
 sx = np.array([[0, 1],[ 1, 0]])
@@ -47,7 +48,15 @@ def in_bz(k):
     if 2*coeffs_int[1]>i or 2*coeffs_int[1]<-i+1:
         return False
     return True
+def valley_inv(P):
+    m = np.diag([0+1j,0+1j,0-1j,0-1j,0+1j,0+1j,0-1j,0-1j])
+    s = reduce(lambda x, k: x +
+            np.linalg.norm(m\
+            @ P[k] @ np.conjugate(m) \
+            - P[k]),range(len(P)))
+    print("\nHF solution valley invariance:",s)
 def in_bz(k,size_bz=None):
+    size_bz = None
     if np.linalg.norm(k-q1)<1e-7:
         return True
     if np.linalg.norm(k+q1)<1e-7:
@@ -60,7 +69,6 @@ def in_bz(k,size_bz=None):
             continue
         if size_bz==None:
             for i in range(1,50):
-                #print(i)
                 if np.isclose(i*d,np.rint(i*d)):
                     break
         else:
@@ -215,7 +223,8 @@ def build_bz(N=10, shifted = False):
         k_rot, G = decompose(np.dot(c3_rot, bz["k_points"][k]),N) #k_rot + G= c3 @ k
         idx_G = (np.linalg.norm(np.array(bz["G_values"]) - G ,axis=1)).argmin()
         if idx_G!=0:
-            print("WHAAAT",idx_G,k_rot)
+            continue
+            #print("WHAAAT",idx_G,k_rot)
             #print("G is:" , G, "k_rot is:", k_rot, "G+k_rot", G+k_rot)
 
         idx = (np.linalg.norm(np.array(bz["k_points"]) - k_rot ,axis=1)).argmin()
@@ -275,15 +284,12 @@ if __name__ =="__main__":
     print(coeffs(q1,True),coords([0,1]))
     print(coeffs([1.732,0]))
     #print(build_bz())
-    m = np.array(build_bz(20,True)["k_points"])
-    print(m.shape)
+    m = np.array(build_bz(3,True)["k_points"])
+    print("Shape of M", m.shape)
 
     plt.scatter(m[:,0],m[:,1])
     #plt.scatter(m[:,0],-m[:,1]-q1[1],marker = "x")
     bz = build_bz(3,True)
-    print(g1,g2,-g1-g2)
-    print(bz["k_points"])
-    print(bz["c3_indices"])
     
     print("Lenght", len(bz["G_values"][1:]))
     for g in bz["G_values"][1:3]:
