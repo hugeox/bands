@@ -14,7 +14,7 @@ from tbglib import g1,g2
 if __name__ == "__main__":
                 
     """ LOADING """
-    id = 300
+    id = 100
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
     #solver.iterate_hf(True,True,False,False)
     #solver.check_v_c2t_invariance()
@@ -25,7 +25,8 @@ if __name__ == "__main__":
     data_new = np.concatenate(tuple([solver.hf_eigenvalues for m in range(len(G_vals))]))
     k_points_new = np.concatenate(tuple([np.array(solver.bz["k_points"])+G_vals[m]-tbglib.q1-centered_at for m in range(len(G_vals))]))
     data_new = [data_new[i] for i in range(len(k_points_new)) if np.linalg.norm(k_points_new[i])<radius]
-    k_points_new = [k_points_new[i] for i in range(len(k_points_new)) if np.linalg.norm(k_points_new[i])<radius]
+    k_points_new = [k_points_new[i] for i in range(len(k_points_new)) if
+np.linalg.norm(k_points_new[i])<radius]
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     X = [k[0] for k in k_points_new]
@@ -36,7 +37,8 @@ if __name__ == "__main__":
     Z = [data_new[k][1] for k in range(len(data_new))]
     surf = ax.plot_trisurf(X,
             Y,Z)
-    plt.show() fig = plt.figure()
+    plt.show() 
+    fig = plt.figure()
     ax = fig.gca(projection='3d')
     X = np.arange(-1.000023, 1, 0.05)
     Y = np.arange(-1.500000054, 1.5, 0.05)

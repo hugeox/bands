@@ -197,7 +197,7 @@ def build_overlaps(bz,model_params):
             projected_szs[:,2:,2:]=projected_szs[:,:2,:2]
         #print(overlaps[0,1,0,:,:])
         #print(overlaps[0,0,0,:,:])
-    return es, overlaps, c2t_evals, c3_evals
+    return es, overlaps, c2t_evals, c3_evals,projected_szs
 def v_hf(bz,overlaps,model_params,P,V_c):
     G_coeffs = bz["G_coeffs"]
     G_s = bz["G_values"]
@@ -316,7 +316,7 @@ class hf_solver(object):
         self.P = [P_k.copy() for k in range(self.N_k)]#default P_0
         print("Number of points is:", self.N_k)
         self.sp_energies, self.overlaps,\
-            self.c2t_eigenvalues, self.c3_eigenvalues = \
+            self.c2t_eigenvalues, self.c3_eigenvalues, self.projected_szs= \
                 build_overlaps(self.bz,model_params)
     def load(self,filepath):
         """ load from hdf5 file """
@@ -343,6 +343,10 @@ class hf_solver(object):
                 N_dof = 2*N_dof
             if model_params["valley"]:
                 N_dof = 2*N_dof
+        except:
+            2+3
+        try:
+            self.projected_szs = hf_solution["projected_szs"]
         except:
             2+3
         self.params["N_f"] = N_dof
@@ -444,6 +448,7 @@ class hf_solver(object):
         f_out.create_dataset("hf_eigenstates", data = self.hf_eigenstates)
         f_out.create_dataset("c2t_eigenvalues", data = self.c2t_eigenvalues)
         f_out.create_dataset("c3_eigenvalues", data = self.c3_eigenvalues)
+        f_out.create_dataset("projected_szs", data = self.projected_szs)
         for key in self.params.keys():
             if key !="V_coulomb":
                 f_out.attrs[key] = self.params[key]
@@ -480,19 +485,19 @@ if __name__ == "__main__":
                     4*np.pi/(3*math.sqrt(3)*0.246) , #this will actually be computed from theta, 0.246nm = lattice const. of graphene
                     "single_gate_screening": False, #single or dual gate screening?
                     "q_lattice_radius": 12,
-                    "size_bz": 3,
+                    "size_bz": 12,
                     "shifted_bz": True,
-                    "description": "v=-3, huge bz, one flavor ",
+                    "description": " only valley",
                     "V_coulomb" : V_coulomb,
                     "filling": -3,
-                    "hf_iters": 1,
+                    "hf_iters": 20,
                     "spin": False,
-                    "valley": False
+                    "valley": True
                     }
 
     solver = hf_solver(model_params,None)
 
-    id = 19
+    id =6 
     print(id)
 
     for m in range(solver.params["hf_iters"]):

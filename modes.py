@@ -36,7 +36,8 @@ if __name__ == "__main__":
     #execution
                 
     id = 404
-    solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
+    #solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
+    solver = hf.hf_solver("data/coherence/hf_{}.hdf5".format("no_coherence"))
     solver.check_v_c2t_invariance()
     P = solver.P
     bz = solver.bz
@@ -81,7 +82,8 @@ if __name__ == "__main__":
                                 model_params["scaling_factor"]**2/(N*1.5*math.sqrt(3))
     
 
-    np.save("data/h_mode_{}.npy".format(id),H_mode)
+    #np.save("data/h_mode_{}.npy".format(id),H_mode)
+    np.save("data/coherence/h_mode_{}.npy".format("no_coherence"),H_mode)
     energies, states = np.linalg.eigh(H_mode)
     print("energies:", energies[:5])
     for i in range(8):

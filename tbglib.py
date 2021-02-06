@@ -239,8 +239,8 @@ def build_bz(N=10, shifted = False):
     N_t = 40
     for i in range(N_t+1):
         point = -3*q1 + 2*q1*(i/N_t)# + np.array([0.000001237,0.000001143])
-        #idx = closest_in_bz(bz["k_points"],point)
-        #bz["trajectory"].append(idx)
+        idx = closest_in_bz(bz["k_points"],point)
+        bz["trajectory"].append(idx)
         bz["trajectory_points"].append(point)
     bz["ticks_vals"].append("Gamma")
     bz["ticks_coords"].append(int(i/2))
@@ -249,8 +249,8 @@ def build_bz(N=10, shifted = False):
 
     for i in range(1,N_t+1):
         point = -q1 +  2* q1*(i/N_t) #+ np.array([0.000001237,0.000001143])
-        #idx = closest_in_bz(bz["k_points"],point)
-        #bz["trajectory"].append(idx)
+        idx = closest_in_bz(bz["k_points"],point)
+        bz["trajectory"].append(idx)
         bz["trajectory_points"].append(point)
     bz["ticks_vals"].append("-Ktop=Gamma")
     bz["ticks_coords"].append(len(bz["trajectory"])-1)
@@ -258,22 +258,22 @@ def build_bz(N=10, shifted = False):
 
     for i in range(1,N_t+1):
         point = q1 -(2*q1+q2)*i/N_t #+ np.array([0.00000032134,0.000001143])
-        #idx = closest_in_bz(bz["k_points"],point)
-        #bz["trajectory"].append(idx)
+        idx = closest_in_bz(bz["k_points"],point)
+        bz["trajectory"].append(idx)
         bz["trajectory_points"].append(point)
     bz["ticks_vals"].append("Gamma")
     bz["ticks_coords"].append(len(bz["trajectory"])-1)
     for i in range(1,N_t+1):
         point = q1 -(2*q1+q2)*i/N_t #+ np.array([0.0000012137,0.000001143])
-        #idx = closest_in_bz(bz["k_points"],point)
-        #bz["trajectory"].append(idx)
+        idx = closest_in_bz(bz["k_points"],point)
+        bz["trajectory"].append(idx)
         bz["trajectory_points"].append(point)
     bz["ticks_vals"].append("Gamma")
     bz["ticks_coords"].append(len(bz["trajectory"])-1)
     for i in range(1,N_t+1):
         point = -q1 -q2 +q2*i/N_t #+ np.array([0.0000012139,0.00000145])
-        #idx = closest_in_bz(bz["k_points"],point)
-        #bz["trajectory"].append(idx)
+        idx = closest_in_bz(bz["k_points"],point)
+        bz["trajectory"].append(idx)
         bz["trajectory_points"].append(point)
     bz["ticks_vals"].append("Ktop")
     bz["ticks_coords"].append(len(bz["trajectory"])-1)

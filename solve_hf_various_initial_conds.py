@@ -15,7 +15,8 @@ def create_state(N_k,N_f,filling,break_c2t=False,break_c3 = False, coherence=Fal
         if filling+4%2!=0:
             print("Warning, need even filling for coherence!")
         for i in range(int((filling+4)/2)):
-            P[4*i:4*i+4,4*i:4*i+4] = np.kron(1/2*(tbglib.s0 + tbglib.sy),tbglib.s0)
+            P[4*i:4*i+4,4*i:4*i+4] = np.kron(0.5*1/math.sqrt(2)*(tbglib.sx+tbglib.sy), \
+                tbglib.sy)+ 1/2*np.kron(tbglib.s0,tbglib.s0 )
         P1 = P
         P2 = P
         print(P)
@@ -39,37 +40,22 @@ if __name__ == "__main__":
 
     id = 5
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
-    solver.params["description"] = "HF,  c3_breaking, various v "
-    for i in range(2):
-        plt.plot([solver.eval_sp(k)[i] for k in solver.bz["trajectory_points"]],
-                label ="sp energies")
-    for i in range(2,4):
-        plt.plot([solver.eval_sp(k)[i] for k in solver.bz["trajectory_points"]],
-                label ="sp energies")
-    plt.xticks(solver.bz["ticks_coords"],solver.bz["ticks_vals"])
-    plt.grid()
-    plt.legend()
-    plt.show()
-    plt.xticks(solver.bz["ticks_coords"],solver.bz["ticks_vals"])
-    plt.grid()
-    plt.legend()
-    plt.show()
+    solver.params["description"] = "HF,  c2t_breaking "
+    solver.params["filling"] = 0
+    P = create_state(solver.N_k,solver.params["N_f"],solver.params["filling"],break_c2t= True,
+                        break_c3 = False, coherence = False)
+    solver.params["epsilon"] = 0.5*1/0.06  
+    solver.reset_P(P)
 
-    P = create_state(solver.N_k,solver.params["N_f"],0,break_c2t = False,
-                        break_c3 = True, coherence = False)
-    print(len(P))
-    print(P[0])
-    for mult in [240]:
-        print("\n", mult)
-        solver.params["epsilon"] = 1/0.06 * mult
-        solver.reset_P(P)
-        for m in range(40):
-            dist =  solver.iterate_hf(True,True,False ,False)
-        for i in range(2):
-            arr = [solver.eval(k)[i] for k in solver.bz["trajectory_points"]]
-            plt.plot(arr,
-                    label ="after" +str(mult)+" hf iter"+ str(i))
-        solver.save("data/hf_{}.hdf5".format(1000*(300+id)+mult))
+    for m in range(240):
+        dist =  solver.iterate_hf(True,True,False ,False)
+        print(solver.hf_energy())
+    for i in range(2):
+        arr = [solver.eval(k)[i] for k in solver.bz["trajectory_points"]]
+        plt.plot(arr,
+                label ="after" +str(m)+" hf iter"+ str(i))
+    #solver.save("data/hf_{}.hdf5".format(100+id))
+    solver.save("data/coherence/hf_{}.hdf5".format("no_coherence_2"))
 
     for i in range(2):
         plt.plot([solver.eval_sp(k)[i] for k in solver.bz["trajectory_points"]],
@@ -78,8 +64,6 @@ if __name__ == "__main__":
     plt.grid()
     plt.legend()
     plt.show()
-    id = 300+id  
-    solver.save("data/hf_{}.hdf5".format(id))
 
 
     """ PLOTTING """
@@ -96,4 +80,3 @@ if __name__ == "__main__":
     plt.xticks(bz["ticks_coords"],bz["ticks_vals"])
     plt.legend()
     plt.show()
-0+id+idd
