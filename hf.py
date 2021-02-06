@@ -366,6 +366,20 @@ class hf_solver(object):
         else:
             self.P_0 = P_in
             self.P = P_in
+    def set_coherent_state(self):
+        N_f = self.params["N_f"]
+        A =  np.zeros((N_f,N_f),dtype=complex)
+        P_1=[]
+        for k in range(self.N_k):
+            evals, states = np.linalg.eigh(self.projected_szs[k,:,:])
+            P_1.append(0.5*np.identity(N_f)+0.5*np.conjugate(states)@ \
+                    np.kron(np.identity(int(N_f/2)),tbglib.sy)@\
+                    np.transpose(states))
+        print(np.conjugate(states)@ \
+                np.kron(np.identity(int(N_f/2)),tbglib.sy)@\
+                np.transpose(states))
+        print(evals)
+        self.reset_P(P_1)
 
     def V_coulomb(self,q_vec):
         #returns V(q) in units of meV nm^2
