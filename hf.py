@@ -253,9 +253,12 @@ def iterate_hf(bz,energies, overlaps, model_params, P,V_c, k_dep_filling = False
     en = []
     for e in energies:
         en.append(np.diag(e))
+    P_0 = np.zeros(np.array(P).shape)
+    for k in range(len(energies)):
+        for i in range(0,len(P[0]), 2):
+            P_0[k,i,i]=1
     h_mf = np.array(en) + v_hf(bz,overlaps,model_params, P,V_c)
-    k = 0
-#    print("h_mf c2t invariance: ",np.linalg.norm(np.diag(c2t_eigenvalues[k]) @ np.conjugate(h_mf[k])@ np.diag(np.conjugate(c2t_eigenvalues[k])) - h_mf[k]))
+                #v_hf(bz,overlaps,model_params, P_0,V_c) #subtract uniform cn solution
     G_coeffs = bz["G_coeffs"]
     G_s = bz["G_values"]
     k_points = bz["k_points"]
@@ -361,12 +364,22 @@ class hf_solver(object):
         print("first c3 eigenvalue",self.c3_eigenvalues[0])
         self.N_k = len(bz["k_points"])
     def reset_P(self,P_in = None):
-        if P_in == None:
+        if type(P_in) is None:
             self.P = self.P_0.copy()
         else:
             self.P_0 = P_in
             self.P = P_in
-    def set_coherent_state(self):
+    def set_state(self,break_c2t = False, break_c3 = False, coherent = False):
+        if coherent:
+            self.params["description"] ="Coherent state"
+            return self.set_coherent_state()
+        else:
+            filling = self.params["filling"]
+            N_f = self.params["N_f"]
+            N_k = self.N_k
+            self.params["description"] ="break_c3: {}, break_c2t:{}".format(break_c3,break_c2t)
+            self.reset_P(tbglib.create_state(N_k,N_f,filling,break_c2t,break_c3))
+    def set_coherent_state(self,angle = 0):
         N_f = self.params["N_f"]
         A =  np.zeros((N_f,N_f),dtype=complex)
         P_1=[]
@@ -374,11 +387,12 @@ class hf_solver(object):
             evals, states = np.linalg.eigh(self.projected_szs[k,:,:])
             P_1.append(0.5*np.identity(N_f)+0.5*np.conjugate(states)@ \
                     np.kron(np.identity(int(N_f/2)),tbglib.sy)@\
+            #        np.kron(tbglib.sz,cos(angle)*tbglib.sx+ sin(angle)*tbglib.sy)@\
                     np.transpose(states))
-        print(np.conjugate(states)@ \
-                np.kron(np.identity(int(N_f/2)),tbglib.sy)@\
-                np.transpose(states))
-        print(evals)
+            # sets QH state
+            #P_1.append(0.5*np.identity(N_f)+0.5*np.conjugate(states)@ \
+            #        np.diag([1,1,-1,-1])@\
+            #        np.transpose(states))
         self.reset_P(P_1)
 
     def V_coulomb(self,q_vec):
@@ -426,6 +440,9 @@ class hf_solver(object):
             print("\nHF solution c3 invariance:",s)
         if impose_c3:
             for k in range(self.N_k):
+                P[self.bz["c3_indices"][k]] = np.diag(self.c3_eigenvalues[self.bz["c3_indices"][k]])\
+                            @ P[self.bz["c3_indices"][self.bz["c3_indices"][k]]] @ \
+                            np.diag(np.conjugate(self.c3_eigenvalues[self.bz["c3_indices"][k]]))
                 P[k] = np.diag(self.c3_eigenvalues[k])\
                             @ P[self.bz["c3_indices"][k]] @ \
                             np.diag(np.conjugate(self.c3_eigenvalues[k]))
@@ -462,7 +479,10 @@ class hf_solver(object):
         f_out.create_dataset("hf_eigenstates", data = self.hf_eigenstates)
         f_out.create_dataset("c2t_eigenvalues", data = self.c2t_eigenvalues)
         f_out.create_dataset("c3_eigenvalues", data = self.c3_eigenvalues)
-        f_out.create_dataset("projected_szs", data = self.projected_szs)
+        try:
+            f_out.create_dataset("projected_szs", data = self.projected_szs)
+        except:
+            1+1
         for key in self.params.keys():
             if key !="V_coulomb":
                 f_out.attrs[key] = self.params[key]
@@ -495,13 +515,13 @@ if __name__ == "__main__":
                     "v_dirac" : int(19746/2), #v_0 k_D in meV
                     "epsilon" : 1/0.06,
                     "d_s": 40, #screening length in nm
-                    "scaling_factor": 2* sin(1.09*np.pi/180)*\
+                    "scaling_factor": 2* sin(1.05*np.pi/180)*\
                     4*np.pi/(3*math.sqrt(3)*0.246) , #this will actually be computed from theta, 0.246nm = lattice const. of graphene
                     "single_gate_screening": False, #single or dual gate screening?
                     "q_lattice_radius": 12,
                     "size_bz": 12,
                     "shifted_bz": True,
-                    "description": " only valley",
+                    "description": " only valley,smaller angle",
                     "V_coulomb" : V_coulomb,
                     "filling": -3,
                     "hf_iters": 20,
@@ -511,7 +531,7 @@ if __name__ == "__main__":
 
     solver = hf_solver(model_params,None)
 
-    id =6 
+    id =7
     print(id)
 
     for m in range(solver.params["hf_iters"]):

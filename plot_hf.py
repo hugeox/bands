@@ -14,12 +14,12 @@ from tbglib import g1,g2
 if __name__ == "__main__":
                 
     """ LOADING """
-    id = 100
+    id = 5
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
     #solver.iterate_hf(True,True,False,False)
     #solver.check_v_c2t_invariance()
     centered_at = tbglib.q1-tbglib.q1 #where is the view centered, i.e. this is [0,0]
-    radius = 0.3
+    radius = 1.2
  
     G_vals = [np.array([0,0]),g1,g2,g1+g2,-g1,-g2,-g1-g2] 
     data_new = np.concatenate(tuple([solver.hf_eigenvalues for m in range(len(G_vals))]))

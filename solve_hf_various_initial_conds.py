@@ -8,54 +8,29 @@ import tbglib
 import h5py
 import hf
 
-def create_state(N_k,N_f,filling,break_c2t=False,break_c3 = False, coherence=False):
-    P_1=[]
-    P = np.zeros((N_f,N_f),dtype = complex)
-    if  coherence == True:
-        if filling+4%2!=0:
-            print("Warning, need even filling for coherence!")
-        for i in range(int((filling+4)/2)):
-            P[4*i:4*i+4,4*i:4*i+4] = np.kron(0.5*1/math.sqrt(2)*(tbglib.sx+tbglib.sy), \
-                tbglib.sy)+ 1/2*np.kron(tbglib.s0,tbglib.s0 )
-        P1 = P
-        P2 = P
-        print(P)
-    else:
-        m = np.zeros((int(N_f/2)),dtype = complex)
-        m[:filling+4]=1
-        if break_c2t:
-            P1 =  np.kron(np.diag(m),1/2*(tbglib.s0 + tbglib.sy))
-        else:
-            P1 =  np.kron(np.diag(m),1/2*(tbglib.s0 + tbglib.sz))
-        P2 =  np.kron(np.diag(m),1/2*(tbglib.s0 - tbglib.sz))
-    for k in range(N_k):
-        if k%7==0 and break_c3:
-            P_1.append(P2.copy())
-        else:
-            P_1.append(P1.copy())     
-    return P_1
 if __name__ == "__main__":
                 
     """ LOADING """
 
     id = 5
     solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
-    solver.params["description"] = "HF,  c2t_breaking "
-    solver.params["filling"] = 0
-    P = create_state(solver.N_k,solver.params["N_f"],solver.params["filling"],break_c2t= True,
-                        break_c3 = False, coherence = False)
-    solver.params["epsilon"] = 0.5*1/0.06  
-    solver.reset_P(P)
+    solver.params["filling"] = -3
+    #solver.set_state(break_c2t=True,break_c3=False,coherent=False)
+    solver.reset_P(solver.P)
+    solver.params["epsilon"] = 1/0.06 * 10
 
-    for m in range(240):
+    #dist =  solver.iterate_hf(True,True,False ,True)
+    for m in range(40):
         dist =  solver.iterate_hf(True,True,False ,False)
+        tbglib.valley_inv(solver.P)
+        #print(solver.P[2])
         print(solver.hf_energy())
     for i in range(2):
         arr = [solver.eval(k)[i] for k in solver.bz["trajectory_points"]]
         plt.plot(arr,
                 label ="after" +str(m)+" hf iter"+ str(i))
-    #solver.save("data/hf_{}.hdf5".format(100+id))
-    solver.save("data/coherence/hf_{}.hdf5".format("no_coherence_2"))
+    solver.save("data/hf_{}.hdf5".format(id))
+    #solver.save("data/coherence/hf_{}.hdf5".format("no_coherence_2"))
 
     for i in range(2):
         plt.plot([solver.eval_sp(k)[i] for k in solver.bz["trajectory_points"]],

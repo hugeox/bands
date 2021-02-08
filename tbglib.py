@@ -49,14 +49,36 @@ def in_bz(k):
         return False
     return True
 def valley_inv(P):
-    m = np.diag([0+1j,0+1j,0-1j,0-1j,0+1j,0+1j,0-1j,0-1j])
-    s = reduce(lambda x, k: x +
-            np.linalg.norm(m\
-            @ P[k] @ np.conjugate(m) \
-            - P[k]),range(len(P)))
-    print("\nHF solution valley invariance:",s)
+    #m = np.diag([0+1j,0+1j,0-1j,0-1j,0+1j,0+1j,0-1j,0-1j])
+    m = np.diag([0+1j,0+1j,0-1j,0-1j])
+    try:
+        s = reduce(lambda x, k: x +
+                np.linalg.norm(m\
+                @ P[k] @ np.conjugate(m) \
+                - P[k]),range(len(P)))
+        print("\nHF solution valley invariance:",s)
+    except:
+        2+3
+def create_state(N_k,N_f,filling,break_c2t=False,break_c3 = False):
+    P_1=[]
+    full_fill = int(N_f/2) #filling when totally full
+    P = np.zeros((N_f,N_f),dtype = complex)
+    m = np.zeros((full_fill),dtype = complex)#TODO: REDO!!
+    m[:filling+4]=1
+    if break_c2t:
+        P1 =  np.kron(np.diag(m),1/2*(s0 + sy))
+    else:
+        P1 =  np.kron(np.diag(m),1/2*(s0 + sz))
+    P2 =  np.kron(np.diag(m),1/2*(s0 - sz))
+    for k in range(N_k):
+        if k%7==0 and break_c3:
+            P_1.append(P2.copy())
+        else:
+            P_1.append(P1.copy())     
+    return P_1
 def in_bz(k,size_bz=None):
-    size_bz = None
+    if size_bz==3: # look into problem when size_bz=3
+        size_bz = None
     if np.linalg.norm(k-q1)<1e-7:
         return True
     if np.linalg.norm(k+q1)<1e-7:
