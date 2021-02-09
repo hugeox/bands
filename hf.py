@@ -321,13 +321,14 @@ class hf_solver(object):
         self.sp_energies, self.overlaps,\
             self.c2t_eigenvalues, self.c3_eigenvalues, self.projected_szs= \
                 build_overlaps(self.bz,model_params)
+        self.H_mode = None
     def load(self,filepath):
         """ load from hdf5 file """
         hf_solution={}
         model_params = {}
         f_in = h5py.File(filepath, 'r')
         for k in f_in.keys():
-            #print(k)
+            print(k)
             hf_solution[k] = f_in[k][...]
         
         SIZE_BZ = f_in.attrs["size_bz"]
@@ -337,6 +338,10 @@ class hf_solver(object):
             if key == "description":
                 print("Description:", f_in.attrs[key])
         bz = tbglib.build_bz(SIZE_BZ,model_params["shifted_bz"])
+        if "H_mode" in hf_solution.keys():
+            self.H_mode = hf_solution["H_mode"]
+        else:
+            self.H_mode = None
         self.bz = bz 
         f_in.close()
         self.params = model_params
@@ -364,7 +369,7 @@ class hf_solver(object):
         print("first c3 eigenvalue",self.c3_eigenvalues[0])
         self.N_k = len(bz["k_points"])
     def reset_P(self,P_in = None):
-        if type(P_in) is None:
+        if P_in is None:
             self.P = self.P_0.copy()
         else:
             self.P_0 = P_in
@@ -409,12 +414,6 @@ class hf_solver(object):
                     (q*scaling_factor*epsilon)
     def iterate_hf(self,check_c2t = False,check_c3 = False,impose_c2t = False,
                         impose_c3 = False):
-        if check_c3:
-            s = reduce(lambda x, k: x + np.linalg.norm(np.diag(self.c3_eigenvalues[k])\
-                            @ self.P[self.bz["c3_indices"][k]] @ \
-                            np.diag(np.conjugate(self.c3_eigenvalues[k])) \
-                            - self.P[k]),range(self.N_k))
-            print("\nHF solution c3 invariance:",s)
         P, energies,states = iterate_hf(self.bz,self.sp_energies,
                 self.overlaps,
                 self.params, self.P,self.V_coulomb,False)
@@ -479,6 +478,10 @@ class hf_solver(object):
         f_out.create_dataset("hf_eigenstates", data = self.hf_eigenstates)
         f_out.create_dataset("c2t_eigenvalues", data = self.c2t_eigenvalues)
         f_out.create_dataset("c3_eigenvalues", data = self.c3_eigenvalues)
+        if self.H_mode is None:
+            print("should not be none!")
+        else:
+            f_out.create_dataset("H_mode", data = self.H_mode)
         try:
             f_out.create_dataset("projected_szs", data = self.projected_szs)
         except:
@@ -523,15 +526,15 @@ if __name__ == "__main__":
                     "shifted_bz": True,
                     "description": " only valley,smaller angle",
                     "V_coulomb" : V_coulomb,
-                    "filling": -3,
-                    "hf_iters": 20,
-                    "spin": False,
+                    "filling": 0,
+                    "hf_iters": 1,
+                    "spin": True,
                     "valley": True
                     }
 
     solver = hf_solver(model_params,None)
 
-    id =7
+    id = 5
     print(id)
 
     for m in range(solver.params["hf_iters"]):

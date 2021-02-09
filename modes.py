@@ -31,38 +31,23 @@ def index_kplusq(bz,index_k,q):
         raise ValueError("k plus q does not lie close to any point in bz",
                 abs(np.linalg.norm(bz["k_points"][idx]-k_inbz)))
     return idx
-class mode_solver(object):
-    def __init__(self, q, hf_solver,h_mode_filename = None):
-        self.q = q
-        if type(hf_solver)is str:
-            self.solver = hf.hf_solver(hf_solver)
-        else:
-            self.solver =  hf_solver
-        self.N_f = self.solver.params["N_f"]
-        self.full_fill = int(self.N_f/2) #filling when totally full
-        self.N_filled = self.solver.params["filling"] + self.full_fill
-        self.N_empty = self.N_f - self.N_filled
-        k_points = self.solver.bz["k_points"]
-        self.N = len(k_points)
-        if h_mode_filename is None:
-            self.H_mode = self.build_H_mode()
-        else:
-            self.H_mode = np.load(h_mode_filename)
-    def build_H_mode(self):
-        q = self.q
-        P = self.solver.P
-        bz = self.solver.bz
-        hf_eigenvalues = self.solver.hf_eigenvalues
-        hf_eigenstates = self.solver.hf_eigenstates
-        overlaps = self.solver.overlaps
-        model_params = self.solver.params
-        k_points = self.solver.bz["k_points"]
-        N_f = self.solver.params["N_f"]
+class mode_solver(hf.hf_solver):
+    def build_H_mode(self,q):
+        print("Building H MODE")
+        N_f = self.params["N_f"]
         full_fill = int(N_f/2) #filling when totally full
-        N_filled = self.solver.params["filling"] + full_fill
+        N_filled = self.params["filling"] + full_fill
         N_empty = N_f - N_filled
-        N = len(k_points)
+        P = self.P
+        bz = self.bz
+        hf_eigenvalues = self.hf_eigenvalues
+        hf_eigenstates = self.hf_eigenstates
+        overlaps = self.overlaps
+        model_params = self.params
+        k_points = self.bz["k_points"]
+        N = self.N_k
         H_mode = np.zeros((N,N_filled,N_empty,N,N_filled,N_empty),dtype=complex)
+        print(H_mode.shape)
         for i in range(N_filled):
             for j in range(N_empty):
                 for k in range(N):
@@ -83,39 +68,46 @@ class mode_solver(object):
                                                 V_matrix_element(g,lplusq,kplusq,
                                                     k,l,empty_r+N_filled,empty_l+N_filled,filled_l,
                                                     filled_r,overlaps,
-                                            hf_eigenstates,bz,self.solver.V_coulomb)*\
+                                            hf_eigenstates,bz,self.V_coulomb)*\
                                             model_params["scaling_factor"]**2/\
                                             (N*1.5*math.sqrt(3)) +\
                                         V_matrix_element(g,lplusq,l,
                                                         k,kplusq,
                                                         empty_r+N_filled,filled_r,filled_l,
                                                         empty_l+N_filled,overlaps,
-                                                hf_eigenstates,bz,self.solver.V_coulomb)*\
+                                                hf_eigenstates,bz,self.V_coulomb)*\
                                                 model_params["scaling_factor"]**2/(N*1.5*math.sqrt(3))
         self.H_mode = H_mode
     def solve(self,N_states):
-        energies, states = np.linalg.eigh(np.reshape(self.H_mode,(self.N*self.N_filled*self.N_empty,
-                                    self.N*self.N_filled*self.N_empty)))
+        N_f = self.params["N_f"]
+        full_fill = int(N_f/2) #filling when totally full
+        N_filled = self.params["filling"] + full_fill
+        N_empty = N_f - N_filled
+        energies, states = np.linalg.eigh(np.reshape(self.H_mode,(self.N_k*N_filled*N_empty,
+                                    self.N_k*N_filled*N_empty)))
         
-        states_new = [ np.reshape(states[:,i],(self.N,self.N_filled,self.N_empty)) for i in range(N_states)]
+        states_new = [ np.reshape(states[:,i],(self.N_k,N_filled,N_empty)) for i in range(N_states)]
         return energies[:N_states], states_new
-    def save(self,filename):
-        np.save(filename,self.H_mode)
             
 if __name__ == "__main__":
     #execution
                 
-    id =   6
+    id =   5
     q = np.array([0,0])
-    solver = mode_solver(q,"data/hf_{}.hdf5".format(id))
-                    #"data/h_mode_{}.npy".format(id))
+    filename = "data/hf_5.hdf5"
+    filename = "data/coherence/hf_no_coherence.hdf5"
+    solver = mode_solver(filename)
+    solver.build_H_mode(q)
+    filename = "data/coherence/hf_no_coherence.hdf5"
+    solver.save(filename)
     energies,states = solver.solve(10)
 
     print("energies:", energies)
     print(states[0][0,0,:])
-    solver.save("data/h_mode_{}.npy".format(id))
-    print("First eigenstate", np.abs(solver.hf_solver.hf_eigenstates[0][:,0]))
-    print(np.abs(state[0,0,4]*solver.hf_solver.hf_eigenstates[0][:,5] +
+    #solver.save("data/h_mode_{}.npy".format(id))
+    solver.save("data/coherence/h_mode_{}.npy".format("no_coherence"))
+    print("First eigenstate", np.abs(solver.solver.hf_eigenstates[0][:,0]))
+    print(np.abs(state[0,0,4]*solver.solver.hf_eigenstates[0][:,5] +
 state[0,0,6]*hf_eigenstates[0][:,7]))
     print(hf_eigenstates[0][:,7])
     print(hf_eigenstates[0][:,5])

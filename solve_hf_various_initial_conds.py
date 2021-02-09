@@ -13,14 +13,16 @@ if __name__ == "__main__":
     """ LOADING """
 
     id = 5
-    solver = hf.hf_solver("data/hf_{}.hdf5".format(id))
-    solver.params["filling"] = -3
-    #solver.set_state(break_c2t=True,break_c3=False,coherent=False)
+    #filename = "data/coherence/hf_no_coherence.hdf5"
+    filename = "data/hf_5.hdf5"
+    solver = hf.hf_solver(filename)
+    solver.params["filling"] = 0
+    solver.set_state(break_c2t=True,break_c3=False,coherent=False)
     solver.reset_P(solver.P)
-    solver.params["epsilon"] = 1/0.06 * 10
+    solver.params["epsilon"] = 1/0.06 *5
 
-    #dist =  solver.iterate_hf(True,True,False ,True)
-    for m in range(40):
+    dist =  solver.iterate_hf(True,True,False ,False)
+    for m in range(120):
         dist =  solver.iterate_hf(True,True,False ,False)
         tbglib.valley_inv(solver.P)
         #print(solver.P[2])
@@ -29,8 +31,8 @@ if __name__ == "__main__":
         arr = [solver.eval(k)[i] for k in solver.bz["trajectory_points"]]
         plt.plot(arr,
                 label ="after" +str(m)+" hf iter"+ str(i))
-    solver.save("data/hf_{}.hdf5".format(id))
-    #solver.save("data/coherence/hf_{}.hdf5".format("no_coherence_2"))
+    #solver.save("data/hf_{}.hdf5".format(id))
+    solver.save("data/coherence/hf_{}.hdf5".format("no_coherence"))
 
     for i in range(2):
         plt.plot([solver.eval_sp(k)[i] for k in solver.bz["trajectory_points"]],
