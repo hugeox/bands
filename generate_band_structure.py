@@ -80,19 +80,27 @@ def h_angle(k,theta):
         k)
     return k_rot[0]*tbglib.sx + k_rot[1]*tbglib.sy
 
-def build_T_matrices(w_AA,w_AB):
+def build_T_matrices(w_AA,w_AB,strain):
     Ts = []
     for k in range(3):
-        Ts.append(w_AA*s0 
-                + w_AB*cos(k*tbglib.phi)*tbglib.sx
-                + w_AB*sin(k*tbglib.phi)*tbglib.sy)
+        if k ==0:
+            Ts.append((w_AA*s0 
+                    + w_AB*cos(k*tbglib.phi)*tbglib.sx
+                    + w_AB*sin(k*tbglib.phi)*tbglib.sy)*(1+strain))
+        else:
+            Ts.append(w_AA*s0 
+                    + w_AB*cos(k*tbglib.phi)*tbglib.sx
+                    + w_AB*sin(k*tbglib.phi)*tbglib.sy)
     return Ts
 
 
-def find_energies(k_eval, params, N_bands ,k_lattice_radius=10.5, lattice = None, neighbor_table = None, return_states = False):
+def find_energies(k_eval, params, N_bands ,k_lattice_radius=10.5, lattice = None, neighbor_table = None,
+                    return_states = False):
     v_dirac= params["v_dirac"]
     theta=params["theta"]
-    Ts = build_T_matrices(params["w_AA"],params["w_AB"])
+    ph = params["ph"]
+    strain = params["strain"]
+    Ts = build_T_matrices(params["w_AA"],params["w_AB"],strain)
     H = np.zeros((2*len(lattice),2*len(lattice)), dtype=complex)
     """ fill table with hoppings""" 	
     st = time.time()
@@ -107,9 +115,15 @@ def find_energies(k_eval, params, N_bands ,k_lattice_radius=10.5, lattice = None
     for lattice_point in lattice:
         k = k_eval + lattice_point[0] * tbglib.q1 + lattice_point[1] * tbglib.q2
         if lattice_point[2] == 0: 
-            H[2*i:2*i+2,2*i:2*i+2] = 2 * sin(theta/2) *v_dirac *h_angle(k , -theta/2) #bottom layer
+            if ph:
+                H[2*i:2*i+2,2*i:2*i+2] = 2 * sin(theta/2) *v_dirac *h_angle(k ,0) #bottom layer
+            else:
+                H[2*i:2*i+2,2*i:2*i+2] = 2 * sin(theta/2) *v_dirac *h_angle(k , -theta/2) #bottom layer
         if lattice_point[2] == 1:
-            H[2*i:2*i+2,2*i:2*i+2] =2 * sin(theta/2) *v_dirac*h_angle(k , theta/2) #top layer
+            if ph:
+                H[2*i:2*i+2,2*i:2*i+2] =2 * sin(theta/2) *v_dirac*h_angle(k , 0) #top layer
+            else:
+                H[2*i:2*i+2,2*i:2*i+2] =2 * sin(theta/2) *v_dirac*h_angle(k , theta/2) #top layer
         i = i+1
     end = time.time()
 

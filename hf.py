@@ -11,49 +11,6 @@ from functools import reduce
 
 """ solve a self-consistent Hartree-Fock at given filling and save into file"""
 
-def V_coulomb(q_vec):
-    #returns V(q) in units of meV nm^2
-    q=np.linalg.norm(q_vec)
-    d_s = 40 #screening lenght in nm
-    scaling_factor = 2* sin(1.09*np.pi/180)*\
-                4*np.pi/(3*math.sqrt(3)*0.246)
-    epsilon=1/0.06
-    if q*scaling_factor*d_s<0.01:
-        return 1439.96*d_s*4*np.pi/epsilon #in eV nm^2
-    else:
-        return 1439.96*2*np.pi*math.tanh(q*scaling_factor*d_s)/\
-                (q*scaling_factor*epsilon)
-
-def read_hf_from_file(filename):
-    hf_solution={}
-    model_params = {"theta" : 1.09 * np.pi / 180, #twist angle in radians
-                    "w_AA" :80, #in meV
-                    "w_AB" : 110,#110 #in meV
-                    "v_dirac" : int(19746/2), #v_0 k_D in meV
-                    "epsilon" : 1/0.06,
-                    "d_s": 40, #screening length in nm
-                    "scaling_factor": 2* sin(1.09*np.pi/180)*\
-                    4*np.pi/(3*math.sqrt(3)*0.246) ,
-                    "single_gate_screening": False, #single or dual gate screening?
-                    "q_lattice_radius": 10,
-                    "V_coulomb" : V_coulomb #V_q
-                    }
-    f_in = h5py.File(filename, 'r')
-    for k in f_in.keys():
-        print(k)
-        hf_solution[k] = f_in[k][...]
-    SIZE_BZ = f_in.attrs["size_bz"]
-    bz = tbglib.build_bz(SIZE_BZ)
-    hf_solution["bz"] = bz 
-    for key in f_in.attrs.keys():
-        if key !="V_coulomb":
-            model_params[key] = f_in.attrs[key] 
-    f_in.close()
-    hf_solution["model_params"] = model_params
-    hf_solution["k_points"] = bz["k_points"]
-    hf_solution["N"] = len(bz["k_points"])
-    return hf_solution
-
 def shift_matrix(G,lattice):
     """returns matrix that shifts components of spinor by G, G written in terms of q1,q2 When some lattice points after shift lie outside range, ignore. Same with points which lie originally outside = set them to 0"""
     M = np.zeros((2*len(lattice),2*len(lattice)))
@@ -83,14 +40,17 @@ def C2T_eigenvalue(state):
     #print("Should be 1:", eigvalue)
     return eigvalue
 def c3_eval(state, rotated_state,valley = False):
-    a = 0
+    if valley == True:
+        a = 2
+    else:
+        a = 0
     #rot = cos(tbglib.theta)*tbglib.s0 - (0+1j)*sin(tbglib.theta)*tbglib.sz
     new_state = [0,0]
     new_state[1] = np.exp((0+1j)*2*tbglib.theta)*state[1]
     new_state[0] = np.exp((0+1j)*1*tbglib.theta)*state[0]
     if valley:
-        new_state[1] = np.exp((0+1j)*1*tbglib.theta)*state[1]
-        new_state[0] = np.exp((0+1j)*2*tbglib.theta)*state[0]
+        new_state[1] = np.exp((0+1j)*1*tbglib.theta)*state[a+1]
+        new_state[0] = np.exp((0+1j)*2*tbglib.theta)*state[a+0]
     eigvalue = new_state[0]/rotated_state[a]
     eigvalue2 = new_state[1]/rotated_state[a+1]
     #print("new state", new_state)
@@ -99,6 +59,19 @@ def c3_eval(state, rotated_state,valley = False):
         print("c3 Eigvalue is, and its norm is not one: ", eigvalue)
     if abs(eigvalue-eigvalue2)>0.000001:
         print("c3 Eigvalue is, and is not equal with second method : ", eigvalue,eigvalue2)
+    return eigvalue
+def get_eval(mapped_state,target_state): 
+    """
+    mapped_state = eval*target_state
+    """
+    eigvalue = mapped_state[0]/target_state[0]
+    eigvalue2 = mapped_state[1]/target_state[1]
+    #print("new state", new_state)
+    #print("rotated state", rotated_state[:2])
+    if abs(abs(eigvalue)-1)>0.000001:
+        print("Eigenvalue is, and its norm is not one: ", eigvalue)
+    if abs(eigvalue-eigvalue2)>0.000001:
+        print("eigenvalue is, and is not equal with second method : ", eigvalue,eigvalue2)
     return eigvalue
 def all_c2t_evals(states):
     arr = [C2T_eigenvalue(states[0]),C2T_eigenvalue(states[1])]
@@ -129,15 +102,15 @@ def build_overlaps(bz,model_params):
         energies, states = gbs.find_energies(k,
             params = model_params, N_bands = 2, 
             lattice = lattice,
-            neighbor_table = neighbor_table,return_states = True )
+            neighbor_table = neighbor_table,return_states = True)
         es.append([energies[0],energies[1]])
         c2t_evals.append(all_c2t_evals(states))
         ss.append(states)
         if model_params["valley"]:
-            energies_prime, states_prime = gbs.find_energies(-k,
+            energies_prime, states_prime = gbs.find_energies(-tbglib.q1-k,
                 params = model_params, N_bands = 2, 
                 lattice = lattice,
-                neighbor_table = neighbor_table,return_states = True )
+                neighbor_table = neighbor_table,return_states = True)
             #allways remember coefficient at G at this valley is u_-G
             ss_prime.append(np.conjugate(states_prime))
             es[-1].extend(energies_prime)
@@ -159,6 +132,7 @@ def build_overlaps(bz,model_params):
             #print(es[k])
             c3_evals[-1].append(c3_eval(ss_prime[k][0],np.dot(s_matrices_prime[idx_of_G],  ss_prime[idx_rotated][0]),True))
             c3_evals[-1].append(c3_eval(ss_prime[k][1],np.dot(s_matrices_prime[idx_of_G],  ss_prime[idx_rotated][1]),True))
+    #sublatice_basis(ss,ss_prime,bz)
     
     overlaps = np.zeros((len(G_coeffs),len(k_points),
                         len(k_points),N_f,N_f),dtype = complex)
@@ -198,6 +172,30 @@ def build_overlaps(bz,model_params):
         #print(overlaps[0,1,0,:,:])
         #print(overlaps[0,0,0,:,:])
     return es, overlaps, c2t_evals, c3_evals,projected_szs
+def sublatice_basis(ss,ss_prime,bz):
+    sz = np.kron(np.identity(int(0.5*len(ss[0][0]))),tbglib.sz)
+    s = []
+    s_prime = []
+    sub = [] #states in sublattice polarized basis
+    sub_prime = []
+    for i in range(len(ss)):
+        A = np.zeros((2,2),dtype=complex)
+        for m in range(2):
+            for n in range(2):
+                A[m,n]= np.vdot(ss[i][m],np.dot(sz,ss[i][n]))
+        values,states = np.linalg.eigh(A)
+        s.append(states)
+        sub.append([np.matmul(states[:,0].T,ss[i]),np.matmul(states[:,1].T,ss[i])])
+        A = np.zeros((2,2),dtype=complex)
+        for m in range(2):
+            for n in range(2):
+                A[m,n]= np.vdot(ss_prime[i][m],np.dot(sz,ss_prime[i][n]))
+        values,states = np.linalg.eigh(A)
+        s_prime.append(states)
+        sub_prime.append([np.matmul(states[:,0].T,ss_prime[i]),np.matmul(states[:,1].T,ss_prime[i])])
+    print(sub[0][0].shape)
+    for i in range(len(ss)):
+        print(get_eval(sub[i][0],sub_prime[i][1]))
 def v_hf(bz,overlaps,model_params,P,V_c):
     G_coeffs = bz["G_coeffs"]
     G_s = bz["G_values"]
@@ -215,8 +213,8 @@ def v_hf(bz,overlaps,model_params,P,V_c):
         if g==0 and True: #remove 0 component of V
             temp = 0
         direct_potential.append(temp)
-    scaling_factor =  2* sin(model_params["theta"])*\
-                    4*np.pi/(3*math.sqrt(3)*0.246)
+    scaling_factor =  2* sin(model_params["theta"]/2)*\
+                    4*np.pi/(3*0.246)
     for k in range(len(k_points)):
         temp = np.zeros((N_f,N_f),dtype = complex)
         for g in range(len(G_coeffs)):
@@ -233,7 +231,7 @@ def v_hf(bz,overlaps,model_params,P,V_c):
 
 
 
-        V_hf[k,:,:]=scaling_factor**2*temp/(len(k_points)*1.5*math.sqrt(3))
+        V_hf[k,:,:]=27*scaling_factor**2*temp/(4*np.pi**2*len(k_points)*1.5*math.sqrt(3))
                         #area of hexagon
     return V_hf
 
@@ -353,10 +351,10 @@ class hf_solver(object):
                 N_dof = 2*N_dof
         except:
             2+3
-        try:
+        if "projected_szs" in hf_solution.keys():
             self.projected_szs = hf_solution["projected_szs"]
-        except:
-            2+3
+        else:
+            self.projected_szs = None
         self.params["N_f"] = N_dof
         self.overlaps = hf_solution["overlaps"]
         self.sp_energies = hf_solution["sp_energies"]
@@ -385,38 +383,55 @@ class hf_solver(object):
             self.params["description"] ="break_c3: {}, break_c2t:{}".format(break_c3,break_c2t)
             self.reset_P(tbglib.create_state(N_k,N_f,filling,break_c2t,break_c3))
     def set_coherent_state(self,angle = 0):
+        if self.params["valley"] == False:
+            print("Warning, trying to set coherent state without valley!")
+            return
         N_f = self.params["N_f"]
-        A =  np.zeros((N_f,N_f),dtype=complex)
         P_1=[]
-        for k in range(self.N_k):
-            evals, states = np.linalg.eigh(self.projected_szs[k,:,:])
-            P_1.append(0.5*np.identity(N_f)+0.5*np.conjugate(states)@ \
-                    np.kron(np.identity(int(N_f/2)),tbglib.sy)@\
-            #        np.kron(tbglib.sz,cos(angle)*tbglib.sx+ sin(angle)*tbglib.sy)@\
-                    np.transpose(states))
-            # sets QH state
-            #P_1.append(0.5*np.identity(N_f)+0.5*np.conjugate(states)@ \
-            #        np.diag([1,1,-1,-1])@\
-            #        np.transpose(states))
+        if self.params["spin"]:
+            for k in range(self.N_k):
+                A =  np.zeros((N_f,N_f),dtype=complex)
+                evals, states = np.linalg.eigh(self.projected_szs[k,:4,:4])
+                A[:4,:4]=states
+                evals, states = np.linalg.eigh(self.projected_szs[k,4:,4:])
+                A[4:,4:]=states
+                m = np.zeros(4,dtype = complex)
+                for i in range(self.params["filling"]+4):
+                    m[i]=1
+                m2 = np.zeros(8,dtype = complex)
+                for i in range(self.params["filling"]+4+1):
+                    m2[i]=1
+                print(m)
+                P_1.append(0.5*m2+0.5*np.conjugate(A)@ \
+                        np.kron(np.diag(m),tbglib.sy)@\
+                        np.transpose(A))
+        else:
+            for k in range(self.N_k):
+                evals, states = np.linalg.eigh(self.projected_szs[k,:,:])
+                P_1.append(0.5*np.identity(N_f)+0.5*np.conjugate(states)@ \
+                        np.kron(tbglib.sz,tbglib.sy)@\
+                        np.transpose(states))
+                    
         self.reset_P(P_1)
 
     def V_coulomb(self,q_vec):
         #returns V(q) in units of meV nm^2
         q=np.linalg.norm(q_vec)
         d_s = self.params["d_s"] #screening lenght in nm
-        scaling_factor = 2* sin(self.params["theta"])*\
-                    4*np.pi/(3*math.sqrt(3)*0.246)
+        scaling_factor = 2* sin(self.params["theta"]/2)*\
+                    4*np.pi/(3*0.246) 
         epsilon=self.params["epsilon"]
         if q*scaling_factor*d_s<0.01:
-            return 1439.96*d_s*4*np.pi/epsilon #in eV nm^2
+            return 1439.96*d_s*4*np.pi/epsilon #in meV nm^2
         else:
             return 1439.96*2*np.pi*math.tanh(q*scaling_factor*d_s)/\
                     (q*scaling_factor*epsilon)
+
     def iterate_hf(self,check_c2t = False,check_c3 = False,impose_c2t = False,
-                        impose_c3 = False):
+                        impose_c3 = False,k_dep_filling=False):
         P, energies,states = iterate_hf(self.bz,self.sp_energies,
                 self.overlaps,
-                self.params, self.P,self.V_coulomb,False)
+                self.params, self.P,self.V_coulomb,k_dep_filling)
         dist = np.linalg.norm(np.array(P).ravel()-np.array(self.P).ravel())
         print("HF distance",dist)
         if impose_c2t:
@@ -469,27 +484,31 @@ class hf_solver(object):
                         np.array(v[self.bz["c3_indices"][k]])@ \
                         np.diag(np.conjugate(self.c3_eigenvalues[k])) - v[k]))
     def save(self,filepath):
-        f_out = h5py.File(filepath, 'w')
-        f_out.create_dataset("overlaps", data = self.overlaps)
-        f_out.create_dataset("sp_energies", data = self.sp_energies)
-        f_out.create_dataset("P_hf", data = self.P)
-        f_out.create_dataset("P_0", data = self.P_0)#save also inital guess
-        f_out.create_dataset("hf_eigenvalues", data = self.hf_eigenvalues)
-        f_out.create_dataset("hf_eigenstates", data = self.hf_eigenstates)
-        f_out.create_dataset("c2t_eigenvalues", data = self.c2t_eigenvalues)
-        f_out.create_dataset("c3_eigenvalues", data = self.c3_eigenvalues)
-        if self.H_mode is None:
-            print("should not be none!")
-        else:
-            f_out.create_dataset("H_mode", data = self.H_mode)
         try:
-            f_out.create_dataset("projected_szs", data = self.projected_szs)
+            f_out = h5py.File(filepath, 'w')
+            f_out.create_dataset("overlaps", data = self.overlaps)
+            f_out.create_dataset("sp_energies", data = self.sp_energies)
+            f_out.create_dataset("P_hf", data = self.P)
+            f_out.create_dataset("P_0", data = self.P_0)#save also inital guess
+            f_out.create_dataset("hf_eigenvalues", data = self.hf_eigenvalues)
+            f_out.create_dataset("hf_eigenstates", data = self.hf_eigenstates)
+            f_out.create_dataset("c2t_eigenvalues", data = self.c2t_eigenvalues)
+            f_out.create_dataset("c3_eigenvalues", data = self.c3_eigenvalues)
+            if self.H_mode is None:
+                print("H_mode is none!")
+            else:
+                f_out.create_dataset("H_mode", data = self.H_mode)
+            if self.projected_szs is None:
+                print("Projected_szs should not be none!")
+            else:
+                f_out.create_dataset("projected_szs", data = self.projected_szs)
+            for key in self.params.keys():
+                if key !="V_coulomb":
+                    f_out.attrs[key] = self.params[key]
+            f_out.close()
         except:
-            1+1
-        for key in self.params.keys():
-            if key !="V_coulomb":
-                f_out.attrs[key] = self.params[key]
-        f_out.close()
+            print("Failed writing into file!, writing into", filepath+"fallback")
+            self.save(filepath+"fallback")
     def plot3d(self):
         fig = plt.figure()
         ax = fig.gca(projection='3d')
@@ -508,6 +527,28 @@ class hf_solver(object):
     def hf_energy(self):
         return hf_energy_total(self.bz,self.sp_energies, self.overlaps,
 self.params, self.P,self.V_coulomb)
+    def valley_inv(self):
+        if self.params["valley"]:
+            if self.params["spin"]:
+                m = np.diag([0+1j,0+1j,0-1j,0-1j,0+1j,0+1j,0-1j,0-1j])
+            else:
+                m = np.diag([0+1j,0+1j,0-1j,0-1j])
+            s = reduce(lambda x, k: x +
+                    np.linalg.norm(m\
+                    @ self.P[k] @ np.conjugate(m) \
+                    - self.P[k]),range(len(self.P)))
+            print("\nHF solution valley invariance:",s)
+            k = 0
+            m = np.diag([0+1j,0+1j,0-1j,0-1j,0+1j,0+1j,0-1j,0-1j])
+            print(  np.linalg.norm(m\
+                    @ self.P[k] @ np.conjugate(m) \
+                    - self.P[k]))
+            m = np.diag([0+1j,0+1j,0-1j,0-1j,0+1j,0+1j,0+1j,0+1j])
+            print(  np.linalg.norm(m\
+                    @ self.P[k] @ np.conjugate(m) \
+                    - self.P[k]))
+        else:
+            print("Warning, valley invariance check called, but no valley dof")
 
 if __name__ == "__main__":
     #execution
@@ -518,28 +559,44 @@ if __name__ == "__main__":
                     "v_dirac" : int(19746/2), #v_0 k_D in meV
                     "epsilon" : 1/0.06,
                     "d_s": 40, #screening length in nm
-                    "scaling_factor": 2* sin(1.05*np.pi/180)*\
-                    4*np.pi/(3*math.sqrt(3)*0.246) , #this will actually be computed from theta, 0.246nm = lattice const. of graphene
+                    "scaling_factor": 2* sin(0.5*1.09*np.pi/180)*\
+                    4*np.pi/(3*0.246) , #q_real = scaling_factor*q_here, 0.246nm = lattice const. of graphene
                     "single_gate_screening": False, #single or dual gate screening?
-                    "q_lattice_radius": 12,
+                    "q_lattice_radius": 11,
                     "size_bz": 12,
                     "shifted_bz": True,
-                    "description": " only valley,smaller angle",
-                    "V_coulomb" : V_coulomb,
+                    "description": "strain, one flavor ",
                     "filling": 0,
-                    "hf_iters": 1,
+                    "hf_iters": 200,
                     "spin": True,
-                    "valley": True
+                    "valley": True,
+                    "ph":False,
+                    "strain": 0.01 #strain = 0 means no strain
                     }
 
     solver = hf_solver(model_params,None)
 
-    id = 5
+    id = 1
     print(id)
+    filename = "data/strain/hf_{}.hdf5".format(id)
 
+    solver.set_state(break_c2t=False,break_c3=False,coherent=True)
     for m in range(solver.params["hf_iters"]):
         solver.iterate_hf(True,True,False,False)
-    solver.save("data/hf_{}.hdf5".format(id))
+    solver.save(filename)
+
+    filename = "data/strain/hf_{}.hdf5".format(100+id)
+    solver.set_state(break_c2t=False,break_c3=False,coherent=False)
+    for m in range(solver.params["hf_iters"]):
+        solver.iterate_hf(True,True,False,False)
+    solver.save(filename)
+
+    filename = "data/strain/hf_{}.hdf5".format(200+id)
+    solver.set_state(break_c2t=True,break_c3=False,coherent=False)
+    for m in range(solver.params["hf_iters"]):
+        solver.iterate_hf(True,True,False,False)
+    solver.save(filename)
+
     adfds
     for k in range(solver.N_k-1):
         print("\n")

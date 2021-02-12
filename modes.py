@@ -48,6 +48,8 @@ class mode_solver(hf.hf_solver):
         N = self.N_k
         H_mode = np.zeros((N,N_filled,N_empty,N,N_filled,N_empty),dtype=complex)
         print(H_mode.shape)
+        scaling_factor =  2* sin(model_params["theta"]/2)*\
+                        4*np.pi/(3*0.246)
         for i in range(N_filled):
             for j in range(N_empty):
                 for k in range(N):
@@ -69,14 +71,13 @@ class mode_solver(hf.hf_solver):
                                                     k,l,empty_r+N_filled,empty_l+N_filled,filled_l,
                                                     filled_r,overlaps,
                                             hf_eigenstates,bz,self.V_coulomb)*\
-                                            model_params["scaling_factor"]**2/\
-                                            (N*1.5*math.sqrt(3)) +\
-                                        V_matrix_element(g,lplusq,l,
+                                27*scaling_factor**2/(4*np.pi**2*len(k_points)*1.5*math.sqrt(3))\
+                                        + V_matrix_element(g,lplusq,l,
                                                         k,kplusq,
                                                         empty_r+N_filled,filled_r,filled_l,
                                                         empty_l+N_filled,overlaps,
                                                 hf_eigenstates,bz,self.V_coulomb)*\
-                                                model_params["scaling_factor"]**2/(N*1.5*math.sqrt(3))
+                                27*scaling_factor**2/(4*np.pi**2*len(k_points)*1.5*math.sqrt(3))
         self.H_mode = H_mode
     def solve(self,N_states):
         N_f = self.params["N_f"]
@@ -92,20 +93,29 @@ class mode_solver(hf.hf_solver):
 if __name__ == "__main__":
     #execution
                 
-    id =   5
+    id = 100
     q = np.array([0,0])
-    filename = "data/hf_5.hdf5"
-    filename = "data/coherence/hf_no_coherence.hdf5"
+    filename = "data/strain/hf_{}.hdf5".format(id)
     solver = mode_solver(filename)
     solver.build_H_mode(q)
-    filename = "data/coherence/hf_no_coherence.hdf5"
-    solver.save(filename)
-    energies,states = solver.solve(10)
+    id = 200
+    q = np.array([0,0])
+    filename = "data/strain/hf_{}.hdf5".format(id)
+    solver = mode_solver(filename)
+    solver.build_H_mode(q)
+    energies,states = solver.solve(17)
+    print(np.min(solver.hf_eigenvalues[:,4]-solver.hf_eigenvalues[:,3]))
+    
+
 
     print("energies:", energies)
     print(states[0][0,0,:])
-    #solver.save("data/h_mode_{}.npy".format(id))
-    solver.save("data/coherence/h_mode_{}.npy".format("no_coherence"))
+    print(states[0][0,1,:])
+    print(states[0][0,2,:])
+    print(states[0][0,3,:])
+    print("Into",solver.hf_eigenstates[0][:,1+4])
+    print("From",solver.hf_eigenstates[0][:,0])
+    #solver.save(filename)
     print("First eigenstate", np.abs(solver.solver.hf_eigenstates[0][:,0]))
     print(np.abs(state[0,0,4]*solver.solver.hf_eigenstates[0][:,5] +
 state[0,0,6]*hf_eigenstates[0][:,7]))

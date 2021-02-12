@@ -48,17 +48,6 @@ def in_bz(k):
     if 2*coeffs_int[1]>i or 2*coeffs_int[1]<-i+1:
         return False
     return True
-def valley_inv(P):
-    #m = np.diag([0+1j,0+1j,0-1j,0-1j,0+1j,0+1j,0-1j,0-1j])
-    m = np.diag([0+1j,0+1j,0-1j,0-1j])
-    try:
-        s = reduce(lambda x, k: x +
-                np.linalg.norm(m\
-                @ P[k] @ np.conjugate(m) \
-                - P[k]),range(len(P)))
-        print("\nHF solution valley invariance:",s)
-    except:
-        2+3
 def create_state(N_k,N_f,filling,break_c2t=False,break_c3 = False):
     P_1=[]
     full_fill = int(N_f/2) #filling when totally full
@@ -113,6 +102,49 @@ def in_bz(k,size_bz=None):
             i = size_bz
         coeffs_int = np.rint(i*d).astype(int)
         if 2*coeffs_int >= 3*i:
+            return False
+    return True 
+def in_bz_new(k,size_bz=None):
+    if size_bz==3: # look into problem when size_bz=3
+        size_bz = None
+    if np.linalg.norm(k-q1)<1e-7:
+        return True
+    if np.linalg.norm(k+q1)<1e-7:
+        return True
+    #print("\n k:", k)
+    """k in x,y basis"""
+    for g in g_s[:3]:
+        d = np.dot(k,g)
+        if d<0:
+            continue
+        if size_bz==None:
+            for i in range(1,50):
+                if np.isclose(i*d,np.rint(i*d)):
+                    break
+        else:
+            i = size_bz
+        coeffs_int = np.rint(i*d).astype(int)
+        #print(coeffs_int,i)
+        if 2*coeffs_int > 3*i:
+            return False
+        if 2*coeffs_int == 3*i and np.cross(g,k)>0:
+            return False
+    for g in g_s[3:]:
+        d = np.dot(k,g)#/np.linalg.norm(g)
+        #print(d)
+        if d<0:
+            continue
+        if size_bz==None:
+            for i in range(1,50):
+                #print(i)
+                if np.isclose(i*d,np.rint(i*d)):
+                    break
+        else:
+            i = size_bz
+        coeffs_int = np.rint(i*d).astype(int)
+        if 2*coeffs_int > 3*i:
+            return False
+        if 2*coeffs_int == 3*i and np.cross(g,k)>0:
             return False
     return True 
 def in_bz_old(k):
@@ -235,6 +267,9 @@ def build_bz(N=10, shifted = False):
                 if m==n==0:
                     bz["index_0"]=len(bz["k_points"])
                 bz["k_points"].append(q)
+                #bz["k_points"].append(-q)
+                if not in_bz(-q,N):
+                    continue
 
     idx = (np.linalg.norm(np.array(bz["k_points"]) - np.array([0,0]) ,axis=1)).argmin()
     bz["k_points_diff"] = np.array(bz["k_points"]) - bz["k_points"][idx]
@@ -306,12 +341,12 @@ if __name__ =="__main__":
     print(coeffs(q1,True),coords([0,1]))
     print(coeffs([1.732,0]))
     #print(build_bz())
-    m = np.array(build_bz(3,True)["k_points"])
+    m = np.array(build_bz(6,True)["k_points"])
     print("Shape of M", m.shape)
 
     plt.scatter(m[:,0],m[:,1])
     #plt.scatter(m[:,0],-m[:,1]-q1[1],marker = "x")
-    bz = build_bz(3,True)
+    bz = build_bz(6,True)
     
     print("Lenght", len(bz["G_values"][1:]))
     for g in bz["G_values"][1:3]:
